@@ -75,6 +75,14 @@ export default function WalletScreen({ navigation }) {
           <Text style={styles.actionIcon}>🔄</Text>
           <Text style={styles.actionText}>Échanger</Text>
         </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('QrScanner')}
+        >
+          <Text style={styles.actionIcon}>📱</Text>
+          <Text style={styles.actionText}>Scanner QR</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Transaction History */}

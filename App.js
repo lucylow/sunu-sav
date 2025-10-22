@@ -12,6 +12,7 @@ import TontineDetailScreen from './src/screens/TontineDetailScreen';
 import CreateTontineScreen from './src/screens/CreateTontineScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import WalletScreen from './src/screens/WalletScreen';
+import QrScannerScreen from './src/screens/QrScannerScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -60,6 +61,11 @@ export default function App() {
           name="Wallet" 
           component={WalletScreen}
           options={{ title: 'Portefeuille' }}
+        />
+        <Stack.Screen 
+          name="QrScanner" 
+          component={QrScannerScreen}
+          options={{ title: 'Scanner QR' }}
         />
       </Stack.Navigator>
       <FlashMessage position="top" />

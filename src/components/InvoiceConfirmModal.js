@@ -1,88 +1,91 @@
-import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator
-} from 'react-native';
+import React, { useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import I18n from '../i18n';
+
+type Props = {
+  visible: boolean;
+  invoice?: string;
+  amountSats?: number;
+  memo?: string;
+  lnurlMeta?: any; // { callback, minSendable, maxSendable, metadata }
+  onConfirm: (amountMsat?: number) => void;
+  onClose: () => void;
+};
 
 export default function InvoiceConfirmModal({ 
   visible, 
   invoice, 
   amountSats, 
   memo, 
-  onClose, 
+  lnurlMeta, 
   onConfirm, 
-  isLoading = false 
-}) {
+  onClose 
+}: Props) {
+  const [amountMsatInput, setAmountMsatInput] = useState('');
+
+  const renderBolt11 = () => (
+    <>
+      <Text style={styles.title}>{I18n.t('wallet.confirm_payment')}</Text>
+      <Text style={styles.amount}>
+        {amountSats ? `${amountSats} sats` : I18n.t('wallet.amount_unknown')}
+      </Text>
+      {memo ? (
+        <Text style={styles.memo}>
+          {I18n.t('wallet.memo')}: {memo}
+        </Text>
+      ) : null}
+      <View style={styles.row}>
+        <TouchableOpacity style={[styles.btn, styles.cancel]} onPress={onClose}>
+          <Text style={styles.cancelText}>{I18n.t('app.cancel')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.btn, styles.confirm]} onPress={() => onConfirm()}>
+          <Text style={styles.confirmText}>{I18n.t('wallet.send')}</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  const renderLnurl = () => {
+    const min = lnurlMeta?.minSendable ? Math.ceil(lnurlMeta.minSendable/1000) : undefined;
+    const max = lnurlMeta?.maxSendable ? Math.floor(lnurlMeta.maxSendable/1000) : undefined;
+    
+    return (
+      <>
+        <Text style={styles.title}>{I18n.t('wallet.lnurl_pay')}</Text>
+        <Text style={styles.memo}>{lnurlMeta?.metadata || I18n.t('wallet.pay_using_lnurl')}</Text>
+        <Text style={styles.rangeText}>
+          {I18n.t('wallet.amount_range')}: {min ?? '-'} - {max ?? '-'} sats
+        </Text>
+        <TextInput
+          placeholder={I18n.t('wallet.enter_amount_sats')}
+          keyboardType="numeric"
+          value={amountMsatInput}
+          onChangeText={setAmountMsatInput}
+          style={styles.amountInput}
+        />
+        <View style={styles.row}>
+          <TouchableOpacity style={[styles.btn, styles.cancel]} onPress={onClose}>
+            <Text style={styles.cancelText}>{I18n.t('app.cancel')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.btn, styles.confirm]} onPress={() => {
+            const sats = Number(amountMsatInput);
+            // convert to msat for callback (msat = sats*1000)
+            onConfirm(sats ? sats * 1000 : undefined);
+          }}>
+            <Text style={styles.confirmText}>{I18n.t('wallet.request_invoice')}</Text>
+          </TouchableOpacity>
+        </View>
+      </>
+    );
+  };
+
   return (
-    <Modal 
-      visible={visible} 
-      transparent 
-      animationType="slide" 
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.title}>
-            {I18n.t('confirm_payment')}
-          </Text>
-          
-          <View style={styles.amountContainer}>
-            <Text style={styles.amount}>
-              {amountSats ? `${amountSats.toLocaleString()} sats` : I18n.t('amount_unknown')}
-            </Text>
-            {amountSats && (
-              <Text style={styles.equivalent}>
-                ≈ {Math.round(amountSats * 0.0003)} FCFA
-              </Text>
-            )}
-          </View>
-          
-          {memo && (
-            <View style={styles.memoContainer}>
-              <Text style={styles.memoLabel}>{I18n.t('memo')}</Text>
-              <Text style={styles.memo}>{memo}</Text>
-            </View>
+          {invoice ? renderBolt11() : lnurlMeta ? renderLnurl() : (
+            <Text style={styles.errorText}>{I18n.t('wallet.no_data')}</Text>
           )}
-          
-          <View style={styles.invoiceContainer}>
-            <Text style={styles.invoiceLabel}>
-              {I18n.t('lightning_invoice')}
-            </Text>
-            <Text style={styles.invoiceText} numberOfLines={2}>
-              {invoice.slice(0, 60)}...
-            </Text>
-          </View>
-          
-          <View style={styles.buttonRow}>
-            <TouchableOpacity 
-              style={[styles.button, styles.cancelButton]} 
-              onPress={onClose}
-              disabled={isLoading}
-            >
-              <Text style={styles.cancelButtonText}>
-                {I18n.t('cancel')}
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.button, styles.confirmButton]} 
-              onPress={onConfirm}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.confirmButtonText}>
-                  {I18n.t('pay_now')}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </Modal>
@@ -95,103 +98,75 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
+    width: '90%',
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
     alignItems: 'center',
+    maxWidth: 400,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 20,
+    marginBottom: 8,
     textAlign: 'center',
-    color: '#333333',
-  },
-  amountContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
   },
   amount: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#34C759',
-    marginBottom: 4,
-  },
-  equivalent: {
-    fontSize: 16,
-    color: '#666666',
-  },
-  memoContainer: {
-    width: '100%',
-    marginBottom: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#F8F8F8',
-    borderRadius: 8,
-  },
-  memoLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 4,
+    marginTop: 8,
+    color: '#F7931A',
   },
   memo: {
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
     fontSize: 14,
-    color: '#666666',
   },
-  invoiceContainer: {
-    width: '100%',
-    marginBottom: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#F8F8F8',
+  rangeText: {
+    color: '#666',
+    marginTop: 8,
+    fontSize: 14,
+  },
+  amountInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 12,
+    marginTop: 12,
+    width: '80%',
     borderRadius: 8,
+    fontSize: 16,
   },
-  invoiceLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 8,
-  },
-  invoiceText: {
-    fontSize: 12,
-    color: '#666666',
-    fontFamily: 'monospace',
-  },
-  buttonRow: {
+  row: {
     flexDirection: 'row',
     width: '100%',
-    gap: 12,
+    justifyContent: 'space-between',
+    marginTop: 16,
   },
-  button: {
-    flex: 1,
-    paddingVertical: 14,
+  btn: {
+    padding: 12,
     borderRadius: 8,
+    width: '48%',
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
   },
-  cancelButton: {
-    backgroundColor: '#F0F0F0',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+  cancel: {
+    backgroundColor: '#f0f0f0',
   },
-  confirmButton: {
-    backgroundColor: '#34C759',
+  confirm: {
+    backgroundColor: '#F7931A',
   },
-  cancelButtonText: {
-    color: '#333333',
-    fontSize: 16,
+  cancelText: {
+    color: '#333',
     fontWeight: '600',
   },
-  confirmButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  confirmText: {
+    color: '#fff',
     fontWeight: '600',
+  },
+  errorText: {
+    color: '#666',
+    textAlign: 'center',
   },
 });

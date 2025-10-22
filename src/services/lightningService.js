@@ -1,98 +1,82 @@
-/**
- * Lightning Network service for handling payments and offline queueing
- */
-
+// Lightning service layer for API calls and offline queuing
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Mock API base URL - replace with your actual backend
-const API_BASE = process.env.API_BASE_URL || 'https://api.sunusav.org';
+const API_BASE = process.env.API_BASE_URL || 'https://api.sunusav.dev';
 
-/**
- * Pay a BOLT11 Lightning invoice
- */
-export async function payBolt11(invoice) {
+/* Backend endpoints:
+  POST /ln/parse { lnurl: 'lnurl1...' } -> metadata (callback, minSendable, maxSendable, metadata)
+  POST /lightning/pay { invoice } -> { success, preimage, fee_sats }
+*/
+
+export async function fetchLnurlMetadata(lnurl: string) {
   try {
-    // In a real implementation, this would call your backend API
-    // which would then call LND/BTCPay/LNURL endpoints
+    const response = await fetch(`${API_BASE}/ln/parse`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ lnurl }),
+    });
     
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch LNURL metadata:', error);
+    throw error;
+  }
+}
+
+export async function payInvoiceViaServer(invoice: string) {
+  try {
     const response = await fetch(`${API_BASE}/lightning/pay`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ invoice }),
-      timeout: 30000,
     });
-
+    
     if (!response.ok) {
-      throw new Error(`Payment failed: ${response.status}`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-
-    const data = await response.json();
-    return data; // { success: bool, preimage: string, fee_sats: number, txid?: string }
+    
+    return await response.json();
   } catch (error) {
-    console.error('Payment error:', error);
+    console.error('Failed to pay invoice:', error);
     throw error;
   }
 }
 
-/**
- * Fetch LNURL metadata
- */
-export async function fetchLnurlMetadata(lnurl) {
+/* Offline queue helpers */
+const QUEUE_KEY = '@sunu:pending_payments';
+
+export type PendingPayment = {
+  id: string; // client uuid
+  type: 'bolt11' | 'lnurl';
+  payload: any;
+  createdAt: number;
+  attempts?: number;
+};
+
+export async function enqueuePayment(item: PendingPayment) {
   try {
-    const response = await fetch(`${API_BASE}/lnurl/parse`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ lnurl }),
-      timeout: 15000,
-    });
-
-    if (!response.ok) {
-      throw new Error(`LNURL parsing failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data; // structured lnurl pay metadata
+    const raw = await AsyncStorage.getItem(QUEUE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    arr.push(item);
+    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(arr));
+    return true;
   } catch (error) {
-    console.error('LNURL error:', error);
-    throw error;
+    console.error('Failed to enqueue payment:', error);
+    return false;
   }
 }
 
-/**
- * Offline queue persistence for pending payments
- */
-const PENDING_KEY = '@sunusav:pendingPayments';
-
-export async function queuePendingPayment(payload) {
+export async function getPendingPayments(): Promise<PendingPayment[]> {
   try {
-    const existingRaw = await AsyncStorage.getItem(PENDING_KEY);
-    const existing = existingRaw ? JSON.parse(existingRaw) : [];
-    
-    const newPayment = {
-      id: `pending_${Date.now()}`,
-      createdAt: Date.now(),
-      payload,
-      retryCount: 0,
-      status: 'queued'
-    };
-    
-    existing.push(newPayment);
-    await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(existing));
-    
-    return newPayment.id;
-  } catch (error) {
-    console.error('Failed to queue payment:', error);
-    throw error;
-  }
-}
-
-export async function getPendingPayments() {
-  try {
-    const raw = await AsyncStorage.getItem(PENDING_KEY);
+    const raw = await AsyncStorage.getItem(QUEUE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch (error) {
     console.error('Failed to get pending payments:', error);
@@ -100,14 +84,12 @@ export async function getPendingPayments() {
   }
 }
 
-export async function removePendingPayment(paymentId) {
+export async function removePendingPayment(id: string) {
   try {
-    const existingRaw = await AsyncStorage.getItem(PENDING_KEY);
-    const existing = existingRaw ? JSON.parse(existingRaw) : [];
-    
-    const filtered = existing.filter(p => p.id !== paymentId);
-    await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(filtered));
-    
+    const raw = await AsyncStorage.getItem(QUEUE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    const keep = arr.filter((p: any) => p.id !== id);
+    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(keep));
     return true;
   } catch (error) {
     console.error('Failed to remove pending payment:', error);
@@ -115,26 +97,9 @@ export async function removePendingPayment(paymentId) {
   }
 }
 
-export async function updatePendingPayment(paymentId, updates) {
-  try {
-    const existingRaw = await AsyncStorage.getItem(PENDING_KEY);
-    const existing = existingRaw ? JSON.parse(existingRaw) : [];
-    
-    const updated = existing.map(p => 
-      p.id === paymentId ? { ...p, ...updates } : p
-    );
-    
-    await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(updated));
-    return true;
-  } catch (error) {
-    console.error('Failed to update pending payment:', error);
-    return false;
-  }
-}
-
 export async function clearPendingPayments() {
   try {
-    await AsyncStorage.removeItem(PENDING_KEY);
+    await AsyncStorage.removeItem(QUEUE_KEY);
     return true;
   } catch (error) {
     console.error('Failed to clear pending payments:', error);
@@ -153,22 +118,28 @@ export async function processQueuedPayments() {
 
     for (const payment of pending) {
       try {
-        if (payment.payload.type === 'bolt11') {
-          const result = await payBolt11(payment.payload.invoice);
+        if (payment.type === 'bolt11') {
+          const result = await payInvoiceViaServer(payment.payload.invoice);
           if (result.success) {
             await removePendingPayment(payment.id);
             results.push({ id: payment.id, status: 'success' });
           } else {
             await updatePendingPayment(payment.id, { 
-              retryCount: payment.retryCount + 1,
+              retryCount: (payment.attempts || 0) + 1,
               lastError: result.error || 'Payment failed'
             });
             results.push({ id: payment.id, status: 'failed', error: result.error });
           }
+        } else if (payment.type === 'lnurl') {
+          // Handle LNURL payments
+          const result = await fetchLnurlMetadata(payment.payload.lnurl);
+          // Server-side should handle callback and invoice creation
+          await removePendingPayment(payment.id);
+          results.push({ id: payment.id, status: 'success' });
         }
       } catch (error) {
         await updatePendingPayment(payment.id, { 
-          retryCount: payment.retryCount + 1,
+          retryCount: (payment.attempts || 0) + 1,
           lastError: error.message
         });
         results.push({ id: payment.id, status: 'error', error: error.message });
@@ -179,5 +150,20 @@ export async function processQueuedPayments() {
   } catch (error) {
     console.error('Failed to process queued payments:', error);
     return [];
+  }
+}
+
+async function updatePendingPayment(id: string, updates: Partial<PendingPayment>) {
+  try {
+    const raw = await AsyncStorage.getItem(QUEUE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    const updated = arr.map((p: any) => 
+      p.id === id ? { ...p, ...updates } : p
+    );
+    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(updated));
+    return true;
+  } catch (error) {
+    console.error('Failed to update pending payment:', error);
+    return false;
   }
 }

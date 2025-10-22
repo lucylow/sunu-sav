@@ -209,6 +209,8 @@ export const appRouter = router({
         z.object({
           groupId: z.string(),
           amount: z.number().positive(),
+          memo: z.string().optional(),
+          timestamp: z.number().optional(), // Original client timestamp for idempotency
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -222,7 +224,35 @@ export const appRouter = router({
 
         if (!group) throw new TRPCError({ code: 'NOT_FOUND', message: 'Group not found' });
 
-        const { error } = await supabaseAdmin
+        // Check for duplicate using timestamp (idempotency)
+        if (input.timestamp) {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          const clientTime = new Date(input.timestamp);
+          
+          // Check if there's already a contribution within 5 seconds of the client timestamp
+          const { data: existing } = await supabaseAdmin
+            .from('contributions')
+            .select('id')
+            .eq('group_id', input.groupId)
+            .eq('user_id', ctx.user.id)
+            .eq('cycle', group.current_cycle)
+            .gte('created_at', sevenDaysAgo.toISOString())
+            .single();
+
+          if (existing) {
+            // Check if the timestamps are close enough to be considered the same action
+            const timeDiff = Math.abs(clientTime.getTime() - new Date(existing.created_at).getTime());
+            if (timeDiff < 5000) { // 5 seconds tolerance
+              return {
+                success: true,
+                duplicate: true,
+                message: 'Contribution already recorded',
+              };
+            }
+          }
+        }
+
+        const { data: contribution, error } = await supabaseAdmin
           .from('contributions')
           .insert({
             group_id: input.groupId,
@@ -231,11 +261,18 @@ export const appRouter = router({
             cycle: group.current_cycle,
             payment_hash: `hash_${Date.now()}`,
             status: 'completed',
-          });
+            memo: input.memo,
+          })
+          .select()
+          .single();
 
         if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-        return { success: true };
+        return { 
+          success: true, 
+          contributionId: contribution.id,
+          message: 'Contribution recorded successfully'
+        };
       }),
 
     getMembers: publicProcedure
@@ -438,6 +475,136 @@ export const appRouter = router({
           return transactions;
         } catch (error: any) {
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+  }),
+
+  system: router({
+    health: publicProcedure.query(() => {
+      return { 
+        status: 'ok', 
+        timestamp: Date.now(),
+        version: '1.0.0'
+      };
+    }),
+  }),
+
+  wallet: router({
+    // Get wallet balance
+    getBalance: publicProcedure
+      .input(z.object({ address: z.string() }))
+      .query(async ({ input }) => {
+        try {
+          // In a real implementation, you would query a Bitcoin node or API
+          // This is a mock implementation for development
+          const mockBalance = {
+            confirmed: 100000, // 100,000 satoshis
+            unconfirmed: 0,
+            total: 100000,
+          };
+          
+          return { success: true, balance: mockBalance };
+        } catch (error) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch balance' });
+        }
+      }),
+
+    // Get transaction history
+    getTransactionHistory: publicProcedure
+      .input(z.object({ address: z.string(), limit: z.number().default(50) }))
+      .query(async ({ input }) => {
+        try {
+          // Mock transaction history
+          const mockTransactions = [
+            {
+              txid: 'abc123def456789',
+              amount: 50000,
+              type: 'received',
+              timestamp: Date.now() - 86400000, // 1 day ago
+              confirmations: 6,
+            },
+            {
+              txid: 'def456ghi789012',
+              amount: -25000,
+              type: 'sent',
+              timestamp: Date.now() - 172800000, // 2 days ago
+              confirmations: 12,
+            },
+          ];
+          
+          return { success: true, transactions: mockTransactions };
+        } catch (error) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch transaction history' });
+        }
+      }),
+
+    // Estimate transaction fee
+    estimateFee: publicProcedure
+      .input(z.object({ 
+        utxoCount: z.number(), 
+        outputCount: z.number().default(2) 
+      }))
+      .query(async ({ input }) => {
+        try {
+          // Simplified fee estimation
+          const estimatedSize = (input.utxoCount * 41) + (input.outputCount * 31) + 10;
+          const feeRate = 10; // satoshis per byte
+          const fee = estimatedSize * feeRate;
+          
+          return { success: true, fee };
+        } catch (error) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to estimate fee' });
+        }
+      }),
+
+    // Broadcast transaction
+    broadcastTransaction: publicProcedure
+      .input(z.object({ hex: z.string() }))
+      .mutation(async ({ input }) => {
+        try {
+          // In a real implementation, you would broadcast to a Bitcoin node
+          // This is a mock implementation
+          const mockTxid = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          return { success: true, txid: mockTxid };
+        } catch (error) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to broadcast transaction' });
+        }
+      }),
+
+    // Get UTXOs for an address
+    getUTXOs: publicProcedure
+      .input(z.object({ address: z.string() }))
+      .query(async ({ input }) => {
+        try {
+          // Mock UTXOs
+          const mockUTXOs = [
+            {
+              txid: 'abc123def456789',
+              vout: 0,
+              value: 100000,
+              scriptPubKey: '0014' + 'a'.repeat(40),
+              confirmations: 6,
+            },
+          ];
+          
+          return { success: true, utxos: mockUTXOs };
+        } catch (error) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch UTXOs' });
+        }
+      }),
+
+    // Validate Bitcoin address
+    validateAddress: publicProcedure
+      .input(z.object({ address: z.string() }))
+      .query(async ({ input }) => {
+        try {
+          // Simple validation - in real implementation, use bitcoinjs-lib
+          const isValid = input.address.startsWith('tb1q') || input.address.startsWith('bc1q');
+          
+          return { success: true, isValid };
+        } catch (error) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to validate address' });
         }
       }),
   }),

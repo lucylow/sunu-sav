@@ -112,6 +112,13 @@ export default function HomeScreen({ navigation }) {
       icon: '💰',
       color: '#34C759',
       onPress: () => navigation.navigate('Wallet')
+    },
+    {
+      id: 'qr',
+      title: I18n.t('wallet.scan_qr'),
+      icon: '📱',
+      color: '#F7931A',
+      onPress: () => navigation.navigate('QrScanner')
     }
   ];
 

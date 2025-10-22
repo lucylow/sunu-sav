@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_DB: tontine
+      POSTGRES_USER: tontine_user
+      POSTGRES_PASSWORD: tontine_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tontine_user -d tontine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://tontine_user:tontine_password@postgres:5432/tontine
+      JWT_SECRET: your-super-secret-jwt-key-for-development-only
+      LND_MOCK: 'true'  # Use mock Lightning service for demo
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: >
+      sh -c "
+        npm run migrate &&
+        npm run seed &&
+        npm start
+      "
+
+  # Mock Lightning Node (Simulated for demo)
+  lightning-mock:
+    build:
+      context: .
+      dockerfile: Dockerfile.lightning-mock
+    ports:
+      - "8080:8080"
+    environment:
+      MOCK_MODE: 'true'
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: tontine-network
