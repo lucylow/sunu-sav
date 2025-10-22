@@ -60,6 +60,9 @@ declare module 'aws-sdk' {
 declare module 'class-variance-authority' {
   export function cva(base?: string, config?: any): any;
   export function cx(...inputs: any[]): string;
+  export interface VariantProps<T> {
+    [key: string]: any;
+  }
 }
 
 declare module '@radix-ui/react-accordion' {
@@ -101,6 +104,8 @@ declare module '@radix-ui/react-collapsible' {
   export const Root: any;
   export const Trigger: any;
   export const Content: any;
+  export const CollapsibleTrigger: any;
+  export const CollapsibleContent: any;
 }
 
 declare module '@radix-ui/react-context-menu' {
@@ -109,6 +114,16 @@ declare module '@radix-ui/react-context-menu' {
   export const Portal: any;
   export const Content: any;
   export const Item: any;
+  export const Group: any;
+  export const Sub: any;
+  export const RadioGroup: any;
+  export const SubTrigger: any;
+  export const SubContent: any;
+  export const CheckboxItem: any;
+  export const ItemIndicator: any;
+  export const RadioItem: any;
+  export const Label: any;
+  export const Separator: any;
 }
 
 declare module '@radix-ui/react-dialog' {
@@ -240,11 +255,14 @@ declare module 'react-day-picker' {
   export const SelectSingleEventHandler: any;
   export const SelectMultipleEventHandler: any;
   export const SelectRangeEventHandler: any;
+  export const DayButton: any;
+  export const getDefaultClassNames: any;
 }
 
 declare module 'embla-carousel-react' {
   export const useEmblaCarousel: any;
   export const EmblaCarouselType: any;
+  export const UseEmblaCarouselType: any;
 }
 
 declare module 'recharts' {
@@ -260,6 +278,10 @@ declare module 'recharts' {
   export const PieChart: any;
   export const Pie: any;
   export const Cell: any;
+  export const Legend: any;
+  export interface LegendProps {
+    [key: string]: any;
+  }
 }
 
 declare module 'cmdk' {
@@ -272,11 +294,18 @@ declare module 'vaul' {
 
 declare module 'input-otp' {
   export const OTPInput: any;
+  export const OTPInputContext: any;
 }
 
 declare module 'react-hook-form' {
   export const useForm: any;
   export const Controller: any;
+  export const FormProvider: any;
+  export const useFormContext: any;
+  export const useFormState: any;
+  export const ControllerProps: any;
+  export const FieldPath: any;
+  export const FieldValues: any;
 }
 
 declare module 'react-resizable-panels' {

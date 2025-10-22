@@ -1,85 +1,15 @@
+# docker-compose.ai.yml
 version: '3.8'
 
 services:
-  # Main application
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - AI_CREDIT_SERVICE_URL=http://ai-credit:8001
-      - AI_FRAUD_SERVICE_URL=http://ai-fraud:8002
-      - AI_INSIGHTS_SERVICE_URL=http://ai-insights:8003
-    depends_on:
-      - ai-credit
-      - ai-fraud
-      - ai-insights
-    networks:
-      - sunusav-network
-
-  # AI Credit Scoring Service
-  ai-credit:
-    build: ./services/ai-credit
-    ports:
-      - "8001:8001"
-    environment:
-      - MODEL_PATH=/app/models/credit_score_model.pkl
-    volumes:
-      - ai-credit-models:/app/models
-    networks:
-      - sunusav-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # AI Fraud Detection Service
-  ai-fraud:
-    build: ./services/ai-fraud
-    ports:
-      - "8002:8002"
-    environment:
-      - MODELS_DIR=/app/models
-    volumes:
-      - ai-fraud-models:/app/models
-    networks:
-      - sunusav-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # AI Insights Service
-  ai-insights:
-    build: ./services/ai-insights
-    ports:
-      - "8003:8003"
-    environment:
-      - DATA_DIR=/app/data
-    volumes:
-      - ai-insights-data:/app/data
-    networks:
-      - sunusav-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Redis for AI service communication
+  # Redis for job queues
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
-    networks:
-      - sunusav-network
+      - redis_data:/data
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -90,42 +20,155 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=sunusav
-      - POSTGRES_USER=sunusav
-      - POSTGRES_PASSWORD=sunusav_password
+      POSTGRES_DB: sunusav
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - sunusav-network
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/_core/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sunusav"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Lightning Network Mock Service
-  lightning-mock:
-    build: ./Dockerfile.lightning-mock
-    ports:
-      - "8080:8080"
+  # AI Credit Scoring Service
+  ai-credit:
+    build:
+      context: ./services/ai-credit
+      dockerfile: Dockerfile
     environment:
-      - PORT=8080
-    networks:
-      - sunusav-network
+      - AI_INTERNAL_TOKEN=${AI_INTERNAL_TOKEN:-devtoken}
+      - CREDIT_MODEL_PATH=/app/models/credit_score_model.pkl
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./services/ai-credit/models:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - sunusav-network
+
+  # AI Fraud Detection Service
+  ai-fraud:
+    build:
+      context: ./services/ai-fraud
+      dockerfile: Dockerfile
+    environment:
+      - AI_INTERNAL_TOKEN=${AI_INTERNAL_TOKEN:-devtoken}
+      - FRAUD_MODEL_PATH=/app/models/fraud_iforest.pkl
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./services/ai-fraud/models:/app/models
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - sunusav-network
+
+  # Main Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/sunusav
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AI_CREDIT_URL=http://ai-credit:8001
+      - AI_FRAUD_URL=http://ai-fraud:8002
+      - AI_INTERNAL_TOKEN=${AI_INTERNAL_TOKEN:-devtoken}
+      - LIGHTNING_NETWORK=testnet
+    ports:
+      - "3001:3001"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      ai-credit:
+        condition: service_healthy
+      ai-fraud:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - sunusav-network
+
+  # Credit Worker
+  credit-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/sunusav
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AI_CREDIT_URL=http://ai-credit:8001
+      - AI_INTERNAL_TOKEN=${AI_INTERNAL_TOKEN:-devtoken}
+      - LIGHTNING_NETWORK=testnet
+    command: node server/workers/creditWorker.js
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      ai-credit:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - sunusav-network
+
+  # Fraud Worker
+  fraud-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/sunusav
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AI_FRAUD_URL=http://ai-fraud:8002
+      - AI_INTERNAL_TOKEN=${AI_INTERNAL_TOKEN:-devtoken}
+    command: node server/workers/fraudWorker.js
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      ai-fraud:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - sunusav-network
 
 volumes:
-  ai-credit-models:
-  ai-fraud-models:
-  ai-insights-data:
-  redis-data:
-  postgres-data:
+  postgres_data:
+  redis_data:
 
 networks:
   sunusav-network:

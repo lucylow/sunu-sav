@@ -1,4 +1,3 @@
-// backend/services/USSDService.js
 class USSDService {
   constructor() {
     this.sessionTimeout = 300000; // 5 minutes

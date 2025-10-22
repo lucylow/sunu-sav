@@ -208,13 +208,29 @@ export class LightningManager {
       const status = await checkInvoiceStatus(paymentHash);
       
       if (status.settled) {
+        const invoice = {
+          payment_hash: paymentHash,
+          amount: status.amount_paid_sats,
+          paid_at: new Date()
+        };
+
+        // Enqueue fraud detection for the payment
+        try {
+          const { enqueueFraudCheck } = require('./jobs/aiJobManager');
+          await enqueueFraudCheck(
+            paymentHash, // Use payment hash as payment ID for demo
+            'demo_user_id', // In real implementation, get from invoice metadata
+            status.amount_paid_sats,
+            paymentHash
+          );
+        } catch (aiError) {
+          console.warn('AI fraud detection failed:', aiError);
+          // Continue processing even if AI fails
+        }
+
         return { 
           success: true, 
-          invoice: {
-            payment_hash: paymentHash,
-            amount: status.amount_paid_sats,
-            paid_at: new Date()
-          }
+          invoice
         };
       }
 

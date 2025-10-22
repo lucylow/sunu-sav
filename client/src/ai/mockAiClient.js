@@ -1,126 +1,205 @@
-// frontend/src/ai/mockAiClient.js
-// Pluggable mock AI client. Replace by real client later (same API surface).
-// All functions return Promises to mirror async REST/gRPC calls.
+// client/src/ai/mockAiClient.js
+// Mock AI client for development and testing
 
-const RNG = (seed = 42) => {
-  // deterministic PRNG (mulberry32)
-  let t = seed >>> 0;
-  return () => {
-    t += 0x6D2B79F5;
-    let r = Math.imul(t ^ t >>> 15, 1 | t);
-    r ^= r + Math.imul(r ^ r >>> 7, 61 | r);
-    return ((r ^ r >>> 14) >>> 0) / 4294967296;
-  };
-};
-
-const rand = RNG(1234);
-
-// helpers
-const satToXOF = (sats) => Math.round(sats * 0.00000001 * 100000 / 1); // stub conversion (replace)
-const nowISO = () => new Date().toISOString();
-
-export const aiClient = {
-  // 1. Credit score
-  async predictCreditScore({ userId, features }) {
-    await delay(250);
-    // deterministic pseudo-score
-    const base = 0.5 + (features.punctualityRate || 0.8) * 0.3 + (features.tontine_contributions || 10) * 0.02;
-    const noise = (rand() - 0.5) * 0.08;
-    const score = Math.max(0, Math.min(1, +(base + noise).toFixed(3)));
-    return {
-      userId,
-      score,
-      recommendedLoanXOF: score > 0.75 ? Math.round((0.5 + score) * 50000) : 0,
-      explanation: ['punctuality', 'contributions', 'community_trust'].map((k) => ({ feature: k, impact: +(rand().toFixed(2)) }))
-    };
-  },
-
-  // 2. Chat assistant (mock)
-  async chat({ userId, message, language = 'fr' }) {
-    await delay(250);
-    const replies = {
-      fr: `Bonjour — vous devez ${message.includes('payer') ? 'payer 10000 sats' : 'vérifier votre compte'}`,
-      wo: `Naka def — sa tontine am na ${message.includes('payer') ? '10,000 sats' : 'benn status'}`,
-      en: `Hi — ${message.includes('owe') ? 'you owe 10000 sats' : 'check your balance'}`
-    };
-    return { text: replies[language] || replies.fr, language, timestamp: nowISO() };
-  },
-
-  // 3. Fraud detection (stream or batch)
-  async detectFraud({ batch = [] }) {
-    await delay(120);
-    // return flagged items
-    const flagged = batch.filter((tx, i) => (tx.amountSats && tx.amountSats > 200000) || (i % 11 === 0 && rand() > 0.6));
-    return flagged.map(tx => ({ ...tx, reason: tx.amountSats > 200000 ? 'large_amount' : 'anomalous_timing', score: +(0.6 + rand() * 0.4).toFixed(2) }));
-  },
-
-  // 4. Routing optimizer (mock stats + suggestion)
-  async suggestRouting({ groupId }) {
-    await delay(100);
-    return {
-      groupId,
-      recommendedNode: '03ab12...nodepub',
-      expectedFeeSats: Math.round(1 + rand() * 10),
-      confidence: +(0.6 + rand()*0.4).toFixed(2)
-    };
-  },
-
-  // 5. Inflation insights
-  async forecastInflation({ horizonDays = 180 }) {
-    await delay(120);
-    const points = [];
-    for (let i = 0; i < Math.min(90, horizonDays); i++) {
-      points.push({ date: new Date(Date.now() + i * 86400000).toISOString().slice(0,10), btcCfa: +(50000 + Math.sin(i/7)*3000 + rand()*2000).toFixed(0) });
-    }
-    return { horizonDays, timeseries: points, confidence: 0.82 };
-  },
-
-  // 6. AI payout fairness (mock explanation)
-  async evaluatePayout({ groupId, candidates }) {
-    await delay(150);
-    const winnerIndex = Math.floor(rand() * candidates.length);
-    return {
-      winner: candidates[winnerIndex],
-      scores: candidates.map(c => ({ id: c.id, score: +(0.4 + rand()*0.6).toFixed(3) })),
-      explanation: `Selected via explainable proxy: top metric = punctuality`
-    };
-  },
-
-  // 7. Predictive analytics
-  async predictGroupCompletion({ groupId }) {
-    await delay(180);
-    const completionProb = +(0.6 + rand()*0.3).toFixed(2);
-    return { groupId, completion_prob: completionProb, eta_days: Math.round( (1-completionProb) * 10 ) };
-  },
-
-  // 8. Reminder schedule suggestion
-  async nextRemindTime({ userId, history }) {
-    await delay(40);
-    const hour = 18 + Math.floor(rand()*6);
-    return { userId, nextReminderAt: nextAt(hour), reason: 'user_pattern' };
-  },
-
-  // 9. Agent recommendation
-  async recommendAgent({ location, agents }) {
-    await delay(120);
-    // return nearest agent by mock distance
-    const pick = agents[Math.floor(rand()*agents.length)];
-    return { agent: pick, eta_minutes: Math.round(rand()*30) };
-  },
-
-  // 10. Microtask reward simulation
-  async rewardMicrotask({ userId, taskId }) {
-    await delay(70);
-    const sats = Math.round(5 + rand()*50);
-    return { userId, taskId, sats, txProof: `mockproof-${Math.floor(rand()*1e6)}` };
+export class MockAiClient {
+  constructor() {
+    this.isConnected = true;
+    this.apiKey = 'mock-api-key';
   }
-};
 
-function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
-function nextAt(hour) {
-  const d = new Date();
-  d.setHours(hour, 45, 0, 0);
-  if (d < new Date()) d.setDate(d.getDate()+1);
-  return d.toISOString();
+  async getCreditScore(userId) {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Return mock credit score data
+    return {
+      score: Math.random() * 0.4 + 0.6, // 0.6 to 1.0
+      factors: [
+        { name: 'Payment History', impact: 'positive', value: 0.85 },
+        { name: 'Group Participation', impact: 'positive', value: 0.92 },
+        { name: 'Contribution Consistency', impact: 'positive', value: 0.78 },
+        { name: 'Risk Assessment', impact: 'neutral', value: 0.65 }
+      ],
+      recommendations: [
+        'Maintain consistent payment schedule',
+        'Consider joining additional groups',
+        'Increase contribution amounts gradually'
+      ],
+      lastUpdated: new Date().toISOString()
+    };
+  }
+
+  async getFraudAlerts(userId) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    return {
+      alerts: [
+        {
+          id: 'alert-1',
+          type: 'suspicious_activity',
+          severity: 'medium',
+          message: 'Unusual payment pattern detected',
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          resolved: false
+        }
+      ],
+      riskLevel: 'low'
+    };
+  }
+
+  async getAgentRecommendations(userId) {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    return {
+      recommendations: [
+        {
+          id: 'rec-1',
+          type: 'agent',
+          name: 'Ousmane Diouf',
+          location: 'Dakar Central',
+          rating: 4.8,
+          distance: '2.3 km',
+          specialties: ['cash-in', 'cash-out', 'group-management']
+        }
+      ]
+    };
+  }
+
+  async getInflationData() {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    return {
+      currentRate: 2.3,
+      trend: 'stable',
+      forecast: [
+        { month: 'Jan', rate: 2.1 },
+        { month: 'Feb', rate: 2.3 },
+        { month: 'Mar', rate: 2.2 },
+        { month: 'Apr', rate: 2.4 }
+      ]
+    };
+  }
+
+  async getMicrotaskRewards(userId) {
+    await new Promise(resolve => setTimeout(resolve, 250));
+    
+    return {
+      availableTasks: [
+        {
+          id: 'task-1',
+          title: 'Complete profile verification',
+          reward: 100,
+          estimatedTime: '5 minutes',
+          completed: false
+        },
+        {
+          id: 'task-2',
+          title: 'Invite a friend to join',
+          reward: 500,
+          estimatedTime: '2 minutes',
+          completed: true
+        }
+      ],
+      totalEarned: 500,
+      pendingRewards: 100
+    };
+  }
+
+  async getPayoutExplanation(groupId, cycle) {
+    await new Promise(resolve => setTimeout(resolve, 350));
+    
+    return {
+      explanation: 'This payout was calculated based on the group\'s contribution schedule and member participation rates.',
+      breakdown: [
+        { item: 'Base contribution', amount: 10000 },
+        { item: 'Participation bonus', amount: 500 },
+        { item: 'Group fee', amount: -200 }
+      ],
+      total: 10300
+    };
+  }
+
+  async getPredictiveData(userId) {
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    return {
+      predictions: {
+        nextPaymentDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        riskScore: 0.15,
+        recommendedContribution: 12000
+      },
+      trends: [
+        { date: '2024-01-01', value: 0.8 },
+        { date: '2024-01-08', value: 0.85 },
+        { date: '2024-01-15', value: 0.82 }
+      ]
+    };
+  }
+
+  async getReminderSchedule(userId) {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    return {
+      reminders: [
+        {
+          id: 'reminder-1',
+          type: 'payment_due',
+          message: 'Payment due for Market Central Tontine',
+          scheduledTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          active: true
+        }
+      ]
+    };
+  }
+
+  async getRoutingOptimization(groupId) {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    return {
+      recommendations: [
+        {
+          type: 'payment_routing',
+          suggestion: 'Use Lightning Network for faster settlements',
+          estimatedSavings: 150,
+          confidence: 0.85
+        }
+      ]
+    };
+  }
+
+  async chat(message, context = {}) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Simple mock responses based on message content
+    const responses = {
+      'hello': 'Hello! How can I help you with your tontine today?',
+      'payment': 'I can help you with payment questions. What would you like to know?',
+      'group': 'I can assist with group management. What do you need help with?',
+      'credit': 'Your credit score is looking good! Would you like to see your detailed report?',
+      'default': 'I understand you\'re asking about tontines. Could you be more specific about what you need help with?'
+    };
+    
+    const lowerMessage = message.toLowerCase();
+    let response = responses.default;
+    
+    if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+      response = responses.hello;
+    } else if (lowerMessage.includes('payment')) {
+      response = responses.payment;
+    } else if (lowerMessage.includes('group')) {
+      response = responses.group;
+    } else if (lowerMessage.includes('credit')) {
+      response = responses.credit;
+    }
+    
+    return {
+      message: response,
+      timestamp: new Date().toISOString(),
+      context: context
+    };
+  }
 }
-export default aiClient;
+
+// Export singleton instance
+export const mockAiClient = new MockAiClient();
+export default mockAiClient;

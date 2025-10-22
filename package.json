@@ -21,7 +21,14 @@
     "demo": "bash scripts/demo-setup.sh",
     "demo:reset": "pnpm db:push --force && node scripts/seed-demo-data.js",
     "demo:test": "bash scripts/test-happy-path.sh",
-    "demo:clean": "docker-compose down -v"
+    "ai:start": "docker-compose -f docker-compose.ai.yml up -d",
+    "ai:stop": "docker-compose -f docker-compose.ai.yml down",
+    "ai:logs": "docker-compose -f docker-compose.ai.yml logs -f",
+    "ai:workers": "concurrently \"node server/_core/workers/creditWorker.js\" \"node server/_core/workers/fraudWorker.js\" \"node server/_core/workers/notificationWorker.js\"",
+    "seed:users": "node backend/scripts/seed_mock_users.js",
+    "seed:activity": "node backend/scripts/generate_mock_activity.js",
+    "seed:all": "npm run seed:users && npm run seed:activity",
+    "db:seed": "psql $DATABASE_URL -f migrations/seed_mock_users.sql"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.9.0",
@@ -49,7 +56,9 @@
     "body-parser": "^1.20.2",
     "bolt11": "^1.4.1",
     "bs58check": "^2.1.2",
+    "bullmq": "^5.61.0",
     "clsx": "^2.0.0",
+    "concurrently": "^9.2.1",
     "crypto-js": "^4.2.0",
     "debug": "^4.4.3",
     "dotenv": "^17.2.2",
@@ -59,6 +68,7 @@
     "helmet": "^7.1.0",
     "hex-lite": "^1.0.0",
     "i18n-js": "^3.9.0",
+    "ioredis": "^5.8.2",
     "jose": "6.1.0",
     "knex": "^3.1.0",
     "ln-service": "^57.27.0",
