@@ -1,5 +1,5 @@
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import { supabase } from "../integrations/supabase/client";
+import type { Database } from "../integrations/supabase/types";
 
 type Tables = Database['public']['Tables'];
 type TablesInsert = Database['public']['Tables'];
@@ -98,7 +98,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data: data || [], success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -113,7 +113,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -128,7 +128,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -144,7 +144,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -160,7 +160,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data: data || [], success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -175,7 +175,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -191,7 +191,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -210,7 +210,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -226,7 +226,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data: data || [], success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -241,7 +241,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -257,7 +257,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data: data || [], success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -272,7 +272,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -292,7 +292,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -309,7 +309,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -324,7 +324,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -340,7 +340,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -356,7 +356,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data: data || [], success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -371,7 +371,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -387,7 +387,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -405,7 +405,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data: data || [], success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -420,7 +420,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -453,7 +453,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data: data || [], success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -466,7 +466,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data: data || false, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -490,9 +490,9 @@ class SunuSavAPI {
         });
 
       if (error) throw error;
-      return { data: data || null, success: true };
+      return { data: data?.[0] || null, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 
@@ -507,7 +507,7 @@ class SunuSavAPI {
       if (error) throw error;
       return { data: data || { total_sats: 0, total_xof: 0 }, success: true };
     } catch (error) {
-      return { error: error.message, success: false };
+      return { error: (error as Error).message, success: false };
     }
   }
 }

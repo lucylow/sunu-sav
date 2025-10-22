@@ -283,12 +283,271 @@ export type Database = {
           },
         ]
       }
+      // Senegal-specific tables
+      wave_transactions: {
+        Row: {
+          id: string
+          user_id: string
+          phone_number: string
+          amount_xof: number
+          amount_sats: number
+          wave_transaction_id: string | null
+          status: 'pending' | 'completed' | 'failed'
+          reference: string | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          phone_number: string
+          amount_xof: number
+          amount_sats: number
+          wave_transaction_id?: string | null
+          status?: 'pending' | 'completed' | 'failed'
+          reference?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          phone_number?: string
+          amount_xof?: number
+          amount_sats?: number
+          wave_transaction_id?: string | null
+          status?: 'pending' | 'completed' | 'failed'
+          reference?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wave_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ussd_sessions: {
+        Row: {
+          id: string
+          phone_number: string
+          session_id: string
+          menu_state: string
+          user_data: any | null
+          expires_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          phone_number: string
+          session_id: string
+          menu_state?: string
+          user_data?: any | null
+          expires_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          phone_number?: string
+          session_id?: string
+          menu_state?: string
+          user_data?: any | null
+          expires_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          tier: 'standard' | 'pro' | 'enterprise'
+          recurring_xof: number
+          active: boolean
+          started_at: string
+          expires_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tier?: 'standard' | 'pro' | 'enterprise'
+          recurring_xof?: number
+          active?: boolean
+          started_at?: string
+          expires_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tier?: 'standard' | 'pro' | 'enterprise'
+          recurring_xof?: number
+          active?: boolean
+          started_at?: string
+          expires_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_records: {
+        Row: {
+          id: string
+          cycle_id: string | null
+          sats_fee: number
+          sats_to_partner: number
+          sats_to_community: number
+          sats_to_platform: number
+          reason: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          cycle_id?: string | null
+          sats_fee: number
+          sats_to_partner?: number
+          sats_to_community?: number
+          sats_to_platform?: number
+          reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          cycle_id?: string | null
+          sats_fee?: number
+          sats_to_partner?: number
+          sats_to_community?: number
+          sats_to_platform?: number
+          reason?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_records_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "tontine_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exchange_rates: {
+        Row: {
+          id: string
+          currency_pair: string
+          rate: number
+          source: string
+          timestamp: string
+        }
+        Insert: {
+          id?: string
+          currency_pair: string
+          rate: number
+          source: string
+          timestamp?: string
+        }
+        Update: {
+          id?: string
+          currency_pair?: string
+          rate?: number
+          source?: string
+          timestamp?: string
+        }
+        Relationships: []
+      }
+      senegal_holidays: {
+        Row: {
+          id: string
+          date: string
+          name: string
+          is_recurring: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          date: string
+          name: string
+          is_recurring?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          date?: string
+          name?: string
+          is_recurring?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      community_fund: {
+        Row: {
+          id: string
+          total_sats: number
+          total_xof: number
+          last_distribution: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          total_sats?: number
+          total_xof?: number
+          last_distribution?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          total_sats?: number
+          total_xof?: number
+          last_distribution?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_business_day_in_senegal: {
+        Args: {
+          check_date: string
+        }
+        Returns: boolean
+      }
+      get_next_business_day_in_senegal: {
+        Args: {
+          start_date: string
+        }
+        Returns: string
+      }
+      calculate_fee_breakdown: {
+        Args: {
+          payout_sats: number
+          group_verified?: boolean
+          user_recurring?: boolean
+        }
+        Returns: {
+          sats_fee: number
+          platform_share: number
+          community_share: number
+          partner_reserved: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
