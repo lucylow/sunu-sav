@@ -169,4 +169,107 @@
       max-width: 1280px; /* Standard content width */
     }
   }
+
+  /* Landing page specific styles */
+  .landing-gradient {
+    background: linear-gradient(135deg, #fef3e2 0%, #fef7ed 50%, #fef3c7 100%);
+  }
+
+  .cultural-pattern {
+    background-image: 
+      radial-gradient(circle at 25% 25%, rgba(251, 146, 60, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(217, 119, 6, 0.1) 0%, transparent 50%);
+  }
+
+  .floating-animation {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  .pulse-animation {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .slide-in-left {
+    animation: slideInLeft 0.8s ease-out;
+  }
+
+  .slide-in-right {
+    animation: slideInRight 0.8s ease-out;
+  }
+
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .testimonial-card {
+    transition: all 0.3s ease;
+  }
+
+  .testimonial-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Senegalese-inspired button styles */
+  .btn-senegalese {
+    background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+    box-shadow: 0 4px 15px rgba(234, 88, 12, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .btn-senegalese:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+    box-shadow: 0 6px 20px rgba(234, 88, 12, 0.4);
+    transform: translateY(-2px);
+  }
+
+  /* Cultural pattern overlay */
+  .pattern-overlay {
+    position: relative;
+  }
+
+  .pattern-overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(251, 146, 60, 0.03) 10px,
+        rgba(251, 146, 60, 0.03) 20px
+      );
+    pointer-events: none;
+  }
 }

@@ -3,6 +3,9 @@ import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createClient } from "@supabase/supabase-js";
+import LightningManager from "./_core/lightningService";
+import MultiSigManager from "./_core/multiSigService";
+import PayoutManager from "./_core/payoutService";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -291,30 +294,23 @@ export const appRouter = router({
         z.object({
           amount: z.number().positive(),
           groupId: z.string().optional(),
+          memo: z.string().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
         if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
 
-        const paymentHash = `hash_${Date.now()}_${Math.random().toString(36)}`;
-        const paymentRequest = `lnbc${input.amount * 100000000}n${paymentHash}`;
-        const expiresAt = new Date(Date.now() + 3600000); // 1 hour
-
-        const { data: invoice, error } = await supabaseAdmin
-          .from('lightning_invoices')
-          .insert({
-            user_id: ctx.user.id,
-            payment_hash: paymentHash,
-            payment_request: paymentRequest,
-            amount: input.amount,
-            group_id: input.groupId,
-            expires_at: expiresAt.toISOString(),
-          })
-          .select()
-          .single();
-
-        if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
-        return invoice;
+        try {
+          const invoice = await LightningManager.createInvoice(
+            ctx.user.id,
+            input.amount,
+            input.groupId,
+            input.memo
+          );
+          return invoice;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
       }),
 
     getInvoices: publicProcedure.query(async ({ ctx }) => {
@@ -329,6 +325,212 @@ export const appRouter = router({
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
       return invoices || [];
     }),
+
+    checkPayment: publicProcedure
+      .input(z.object({ paymentHash: z.string() }))
+      .query(async ({ input }) => {
+        const result = await LightningManager.getInvoiceStatus(input.paymentHash);
+        return result;
+      }),
+
+    processPayment: publicProcedure
+      .input(z.object({ paymentHash: z.string() }))
+      .mutation(async ({ input }) => {
+        const result = await LightningManager.processPayment(input.paymentHash);
+        return result;
+      }),
+  }),
+
+  multisig: router({
+    createWallet: publicProcedure
+      .input(
+        z.object({
+          groupId: z.string(),
+          memberIds: z.array(z.string()),
+          requiredSignatures: z.number().min(2).max(5).default(2),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+
+        try {
+          const wallet = await MultiSigManager.createWallet(
+            input.groupId,
+            input.memberIds,
+            input.requiredSignatures
+          );
+          return wallet;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+
+    getWallet: publicProcedure
+      .input(z.object({ walletId: z.string() }))
+      .query(async ({ input }) => {
+        const wallet = await MultiSigManager.getWalletInfo(input.walletId);
+        if (!wallet) throw new TRPCError({ code: 'NOT_FOUND', message: 'Wallet not found' });
+        return wallet;
+      }),
+
+    getBalance: publicProcedure
+      .input(z.object({ walletId: z.string() }))
+      .query(async ({ input }) => {
+        try {
+          const balance = await MultiSigManager.getWalletBalance(input.walletId);
+          return balance;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+
+    initiateTransaction: publicProcedure
+      .input(
+        z.object({
+          walletId: z.string(),
+          toAddress: z.string(),
+          amount: z.number().positive(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+
+        try {
+          const result = await MultiSigManager.initiateTransaction(
+            input.walletId,
+            input.toAddress,
+            input.amount,
+            ctx.user.id
+          );
+          return result;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+
+    signTransaction: publicProcedure
+      .input(
+        z.object({
+          transactionId: z.string(),
+          signature: z.string(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+
+        try {
+          const result = await MultiSigManager.signTransaction(
+            input.transactionId,
+            ctx.user.id,
+            input.signature
+          );
+          return result;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+
+    getPendingTransactions: publicProcedure
+      .input(z.object({ walletId: z.string() }))
+      .query(async ({ input }) => {
+        try {
+          const transactions = await MultiSigManager.getPendingTransactions(input.walletId);
+          return transactions;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+  }),
+
+  payout: router({
+    schedule: publicProcedure
+      .input(
+        z.object({
+          groupId: z.string(),
+          cycle: z.number(),
+          scheduledDate: z.string(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        try {
+          const payout = await PayoutManager.schedulePayout(
+            input.groupId,
+            input.cycle,
+            new Date(input.scheduledDate)
+          );
+          return payout;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+
+    selectWinner: publicProcedure
+      .input(
+        z.object({
+          groupId: z.string(),
+          cycle: z.number(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        try {
+          const winnerId = await PayoutManager.selectWinner(input.groupId, input.cycle);
+          return { winnerId };
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+
+    process: publicProcedure
+      .input(
+        z.object({
+          groupId: z.string(),
+          cycle: z.number(),
+          winnerId: z.string(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        try {
+          const result = await PayoutManager.processPayout(
+            input.groupId,
+            input.cycle,
+            input.winnerId
+          );
+          return result;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+
+    getHistory: publicProcedure
+      .input(z.object({ groupId: z.string() }))
+      .query(async ({ input }) => {
+        try {
+          const history = await PayoutManager.getPayoutHistory(input.groupId);
+          return history;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
+
+    getUpcoming: publicProcedure.query(async () => {
+      try {
+        const upcoming = await PayoutManager.getUpcomingPayouts();
+        return upcoming;
+      } catch (error: any) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      }
+    }),
+
+    autoSchedule: publicProcedure
+      .input(z.object({ groupId: z.string() }))
+      .mutation(async ({ input }) => {
+        try {
+          const payout = await PayoutManager.autoScheduleNextPayout(input.groupId);
+          return payout;
+        } catch (error: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        }
+      }),
   }),
 });
 

@@ -9,13 +9,13 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
-  user: { id: string; email?: string; name?: string } | null;
+  user: { id: string; email?: string; name?: string; role?: string } | null;
 };
 
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
-  let user: { id: string; email?: string; name?: string } | null = null;
+  let user: { id: string; email?: string; name?: string; role?: string } | null = null;
 
   try {
     // Extract the authorization header

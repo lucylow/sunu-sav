@@ -44,7 +44,7 @@ const trpcClient = trpc.createClient({
       transformer: superjson,
       async fetch(input, init) {
         // Get Supabase session token
-        const { supabase } = await import("@/integrations/supabase/client");
+        const { supabase } = await import("@src/integrations/supabase/client");
         const { data: { session } } = await supabase.auth.getSession();
         
         return globalThis.fetch(input, {

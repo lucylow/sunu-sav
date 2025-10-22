@@ -4,15 +4,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { Link, useRoute } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   Users, Calendar, Coins, ArrowLeft, Bitcoin, 
-  CheckCircle, Clock, TrendingUp, Zap 
+  CheckCircle, Clock, TrendingUp, Zap, Shield, QrCode
 } from "lucide-react";
 import { APP_TITLE } from "@/const";
 import { toast } from "sonner";
+import PaymentFlow from "@/components/PaymentFlow";
+import MultiSigWallet from "@/components/MultiSigWallet";
+import PayoutManager from "@/components/PayoutManager";
 
 export default function GroupDetail() {
   const { user, loading: authLoading } = useAuth();
@@ -249,6 +253,12 @@ export default function GroupDetail() {
               </CardContent>
             </Card>
 
+            {/* Multi-Signature Wallet */}
+            <MultiSigWallet groupId={groupId} />
+
+            {/* Payout Management */}
+            <PayoutManager groupId={groupId} />
+
             {/* Recent Contributions */}
             <Card>
               <CardHeader>
@@ -337,35 +347,24 @@ export default function GroupDetail() {
             ) : (
               <Card className="border-orange-200">
                 <CardHeader>
-                  <CardTitle>Make Contribution</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <QrCode className="h-5 w-5" />
+                    Lightning Payment
+                  </CardTitle>
                   <CardDescription>
-                    Pay via Lightning Network
+                    Pay via Lightning Network with QR code scanning
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleContribute} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="amount">Amount (satoshis)</Label>
-                      <Input
-                        id="amount"
-                        type="number"
-                        placeholder={group.contributionAmount.toString()}
-                        value={contributionAmount}
-                        onChange={(e) => setContributionAmount(e.target.value)}
-                        min="1"
-                      />
-                      <p className="text-xs text-gray-500">
-                        Suggested: {group.contributionAmount.toLocaleString()} sats
-                      </p>
-                    </div>
-                    <Button
-                      type="submit"
-                      disabled={contributeMutation.isPending}
-                      className="w-full bg-orange-600 hover:bg-orange-700"
-                    >
-                      {contributeMutation.isPending ? "Processing..." : "Pay with Lightning"}
-                    </Button>
-                  </form>
+                  <PaymentFlow
+                    groupId={groupId}
+                    amount={group.contributionAmount}
+                    memo={`Tontine contribution - ${group.name}`}
+                    onPaymentComplete={(invoice) => {
+                      toast.success("Payment completed!");
+                      refetch();
+                    }}
+                  />
                 </CardContent>
               </Card>
             )}
