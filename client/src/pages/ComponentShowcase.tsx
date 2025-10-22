@@ -458,7 +458,7 @@ export default function ComponentsShowcase() {
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {datePickerDate ? (
-                          format(datePickerDate, "PPP HH:mm", { locale: zhCN })
+                          format(datePickerDate, "PPP HH:mm")
                         ) : (
                           <span>Select date and time</span>
                         )}
@@ -503,9 +503,7 @@ export default function ComponentsShowcase() {
                   {datePickerDate && (
                     <p className="text-sm text-muted-foreground">
                       Selected:{" "}
-                      {format(datePickerDate, "yyyy/MM/dd  HH:mm", {
-                        locale: zhCN,
-                      })}
+                      {format(datePickerDate, "yyyy/MM/dd  HH:mm")}
                     </p>
                   )}
                 </div>
@@ -551,7 +549,7 @@ export default function ComponentsShowcase() {
                               <CommandItem
                                 key={framework.value}
                                 value={framework.value}
-                                onSelect={currentValue => {
+                                onSelect={(currentValue: string) => {
                                   setSelectedFramework(
                                     currentValue === selectedFramework
                                       ? ""

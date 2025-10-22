@@ -107,7 +107,7 @@ class WebhookHandler {
 
     } catch (error) {
       console.error('Error processing Lightning webhook:', error);
-      this.emit('webhook_error', { error: error.message, webhook: webhookData });
+      this.emit('webhook_error', { error: (error as Error).message, webhook: webhookData });
     }
   }
 

@@ -32,11 +32,11 @@ export type WaveTransaction = {
   phone_number: string;
   amount_xof: number;
   amount_sats: number;
-  wave_transaction_id?: string;
+  wave_transaction_id: string | null;
   status: 'pending' | 'completed' | 'failed';
-  reference?: string;
+  reference: string | null;
   created_at: string;
-  completed_at?: string;
+  completed_at: string | null;
 };
 
 export type USSDSession = {
@@ -56,18 +56,18 @@ export type Subscription = {
   recurring_xof: number;
   active: boolean;
   started_at: string;
-  expires_at?: string;
+  expires_at: string | null;
   created_at: string;
 };
 
 export type FeeRecord = {
   id: string;
-  cycle_id?: string;
+  cycle_id: string | null;
   sats_fee: number;
   sats_to_partner: number;
   sats_to_community: number;
   sats_to_platform: number;
-  reason?: string;
+  reason: string | null;
   created_at: string;
 };
 

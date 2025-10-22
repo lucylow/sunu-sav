@@ -583,10 +583,10 @@ export default function GroupDetail() {
                 </CardHeader>
                 <CardContent>
                   <PaymentFlow
-                    groupId={groupId}
+                    group={group}
                     amount={group.contributionAmount}
                     memo={`Tontine contribution - ${group.name}`}
-                    onPaymentComplete={(invoice) => {
+                    onPaymentComplete={(invoice: any) => {
                       toast.success("Payment completed!");
                       refetch();
                     }}

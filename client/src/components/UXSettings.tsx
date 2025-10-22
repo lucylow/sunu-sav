@@ -71,7 +71,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
     const newPreferences = {
       ...preferences,
       [parentKey]: {
-        ...preferences[parentKey],
+        ...(preferences[parentKey] as any),
         [childKey]: value
       }
     };
@@ -270,7 +270,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                     <Switch
                       id="high-contrast"
                       checked={preferences.accessibility.highContrast}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked: boolean) => 
                         updateNestedPreference('accessibility', 'highContrast', checked)
                       }
                     />
@@ -284,7 +284,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                     <Switch
                       id="large-text"
                       checked={preferences.accessibility.largeText}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked: boolean) => 
                         updateNestedPreference('accessibility', 'largeText', checked)
                       }
                     />
@@ -298,7 +298,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                     <Switch
                       id="reduced-motion"
                       checked={preferences.accessibility.reducedMotion}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked: boolean) => 
                         updateNestedPreference('accessibility', 'reducedMotion', checked)
                       }
                     />
@@ -329,7 +329,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                   <Switch
                     id="payment-notifications"
                     checked={preferences.notifications.payments}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked: boolean) => 
                       updateNestedPreference('notifications', 'payments', checked)
                     }
                   />
@@ -343,7 +343,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                   <Switch
                     id="payout-notifications"
                     checked={preferences.notifications.payouts}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked: boolean) => 
                       updateNestedPreference('notifications', 'payouts', checked)
                     }
                   />
@@ -357,7 +357,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                   <Switch
                     id="group-notifications"
                     checked={preferences.notifications.groupUpdates}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked: boolean) => 
                       updateNestedPreference('notifications', 'groupUpdates', checked)
                     }
                   />
@@ -371,7 +371,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                   <Switch
                     id="security-notifications"
                     checked={preferences.notifications.security}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked: boolean) => 
                       updateNestedPreference('notifications', 'security', checked)
                     }
                   />
@@ -401,8 +401,8 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                   <Switch
                     id="screen-reader"
                     checked={preferences.accessibility.screenReader}
-                    onCheckedChange={(checked) => 
-                      updateNestedPreference('accessibility', 'screenReader', checked)
+                      onCheckedChange={(checked: boolean) => 
+                        updateNestedPreference('accessibility', 'screenReader', checked)
                     }
                   />
                 </div>
@@ -414,7 +414,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                   <div className="mt-2">
                     <Slider
                       value={[preferences.accessibility.largeText ? 1 : 0]}
-                      onValueChange={([value]) => 
+                      onValueChange={([value]: number[]) => 
                         updateNestedPreference('accessibility', 'largeText', value === 1)
                       }
                       max={1}
@@ -460,7 +460,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                   <Switch
                     id="show-balances"
                     checked={preferences.privacy.showBalances}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked: boolean) => 
                       updateNestedPreference('privacy', 'showBalances', checked)
                     }
                   />
@@ -474,7 +474,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                   <Switch
                     id="share-analytics"
                     checked={preferences.privacy.shareAnalytics}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked: boolean) => 
                       updateNestedPreference('privacy', 'shareAnalytics', checked)
                     }
                   />
@@ -488,7 +488,7 @@ export default function UXSettings({ onClose }: UXSettingsProps) {
                   <Switch
                     id="biometric-auth"
                     checked={preferences.privacy.biometricAuth}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked: boolean) => 
                       updateNestedPreference('privacy', 'biometricAuth', checked)
                     }
                   />

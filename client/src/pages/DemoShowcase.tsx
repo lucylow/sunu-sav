@@ -286,15 +286,15 @@ export default function DemoShowcase() {
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-3 w-3 text-gray-400" />
-                        <span>{user.profile.weeklyIncome.toLocaleString()} XOF/week</span>
+                        <span>{user.profile.weekly_income.toLocaleString()} XOF/week</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Smartphone className="h-3 w-3 text-gray-400" />
-                        <span>{user.profile.preferredPayment}</span>
+                        <span>{user.profile.preferred_payment}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-3 w-3 text-gray-400" />
-                        <span>{user.profile.tontineExperience} years experience</span>
+                        <span>{user.profile.tontine_experience} years experience</span>
                       </div>
                     </div>
 
