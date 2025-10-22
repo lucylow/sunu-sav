@@ -27,8 +27,7 @@ export default function GroupDetail() {
   const groupId = params?.id || "";
   
   const { data, isLoading, refetch } = trpc.tontine.getGroup.useQuery(
-    { id: groupId },
-    { enabled: !!groupId }
+    { id: groupId }
   );
 
   const joinMutation = trpc.tontine.join.useMutation({

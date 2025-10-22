@@ -30,31 +30,35 @@ export default function PaymentFlow({
   const [copied, setCopied] = useState(false);
 
   const createInvoiceMutation = trpc.wallet.createInvoice.useMutation({
-    onSuccess: (invoice) => {
+    onSuccess: (invoice: any) => {
       setCurrentInvoice(invoice);
       setPaymentStatus('pending');
       toast.success("Invoice created! Scan QR code or copy payment request.");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.message || "Failed to create invoice");
     },
   });
 
-  const checkPaymentMutation = trpc.wallet.checkPayment.useMutation({
-    onSuccess: (result) => {
-      if (result.status === 'paid') {
-        setPaymentStatus('paid');
-        toast.success("Payment confirmed!");
-        onPaymentComplete?.(currentInvoice);
-      } else if (result.status === 'expired') {
-        setPaymentStatus('expired');
-        toast.error("Payment expired");
-      }
-    },
-  });
+  const checkPaymentQuery = trpc.wallet.checkPayment.useQuery(
+    { paymentHash: currentInvoice?.payment_hash || '' },
+    { enabled: !!currentInvoice?.payment_hash }
+  );
+
+  // Handle payment status changes
+  const handlePaymentCheck = (result: any) => {
+    if (result.status === 'paid') {
+      setPaymentStatus('paid');
+      toast.success("Payment confirmed!");
+      onPaymentComplete?.(currentInvoice);
+    } else if (result.status === 'expired') {
+      setPaymentStatus('expired');
+      toast.error("Payment expired");
+    }
+  };
 
   const processPaymentMutation = trpc.wallet.processPayment.useMutation({
-    onSuccess: (result) => {
+    onSuccess: (result: any) => {
       if (result.success) {
         setPaymentStatus('paid');
         toast.success("Payment processed successfully!");
@@ -81,9 +85,8 @@ export default function PaymentFlow({
   const handleCheckPayment = () => {
     if (!currentInvoice) return;
     
-    checkPaymentMutation.mutate({
-      paymentHash: currentInvoice.paymentHash,
-    });
+    // Refetch the query to check payment status
+    checkPaymentQuery.refetch();
   };
 
   const handleProcessPayment = () => {
@@ -267,10 +270,10 @@ export default function PaymentFlow({
               <Button
                 variant="outline"
                 onClick={handleCheckPayment}
-                disabled={checkPaymentMutation.isPending}
+                disabled={checkPaymentQuery.isLoading}
                 className="flex-1"
               >
-                {checkPaymentMutation.isPending ? "Checking..." : "Check Status"}
+                {checkPaymentQuery.isLoading ? "Checking..." : "Check Status"}
               </Button>
               
               {paymentStatus === 'pending' && (

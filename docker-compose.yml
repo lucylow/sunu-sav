@@ -28,16 +28,23 @@ services:
       NODE_ENV: development
       DATABASE_URL: postgresql://tontine_user:tontine_password@postgres:5432/tontine
       JWT_SECRET: your-super-secret-jwt-key-for-development-only
-      LND_MOCK: 'true'  # Use mock Lightning service for demo
+      LND_REST_URL: https://lnd:8080
+      LND_MACAROON_PATH: /run/secrets/lnd/admin.macaroon
+      LND_TLS_CERT_PATH: /run/secrets/lnd/tls.cert
+      LND_REQUEST_TIMEOUT: 60
+      LND_DEFAULT_FEE_LIMIT_SAT: 10
       PORT: 3000
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
+      lnd:
+        condition: service_started
     volumes:
       - ./backend:/app
       - /app/node_modules
+      - ./secrets/lnd:/run/secrets/lnd:ro
     command: >
       sh -c "
         npm run migrate &&
@@ -45,18 +52,45 @@ services:
         npm start
       "
 
-  # Mock Lightning Node (Simulated for demo)
+  # LND Lightning Node (for production)
+  lnd:
+    image: lightninglabs/lnd:v0.17.0-beta
+    ports:
+      - "10009:10009"  # gRPC
+      - "8080:8080"    # REST
+      - "9735:9735"    # Lightning P2P
+    volumes:
+      - lnd_data:/root/.lnd
+      - ./secrets/lnd:/run/secrets/lnd:ro
+    environment:
+      - LND_NETWORK=testnet
+      - LND_REST_LISTEN=0.0.0.0:8080
+      - LND_RPC_LISTEN=0.0.0.0:10009
+      - LND_LISTEN=0.0.0.0:9735
+    command: |
+      lnd --network=testnet \
+          --restlisten=0.0.0.0:8080 \
+          --rpclisten=0.0.0.0:10009 \
+          --listen=0.0.0.0:9735 \
+          --tlsextraip=0.0.0.0 \
+          --no-macaroons \
+          --debuglevel=info
+
+  # Mock Lightning Node (Simulated for demo - fallback)
   lightning-mock:
     build:
       context: .
       dockerfile: Dockerfile.lightning-mock
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       MOCK_MODE: 'true'
+    profiles:
+      - mock
 
 volumes:
   postgres_data:
+  lnd_data:
 
 networks:
   default:

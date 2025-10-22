@@ -1,18 +1,24 @@
 # Lightning API Backend for SunuSàv
-# Simple FastAPI implementation for Lightning Network payments
+# Production-ready FastAPI implementation with LND integration
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 import requests
 import re
 import logging
+import os
 from typing import Optional
+from app.utils.lnd_client import LndClient, LndClientError
+from app.routers import lightning_lnd
 
 app = FastAPI(title="SunuSàv Lightning API")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Include the Lightning router
+app.include_router(lightning_lnd.router, prefix="/lightning", tags=["lightning"])
 
 # Models
 class LnurlParseRequest(BaseModel):
@@ -68,13 +74,20 @@ async def parse_lnurl(request: LnurlParseRequest):
         logger.error(f"LNURL parsing error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to parse LNURL: {str(e)}")
 
-# Lightning payment endpoint
+# Legacy payment endpoint (redirects to new router)
 @app.post("/lightning/pay", response_model=PayInvoiceResponse)
-async def pay_invoice(request: PayInvoiceRequest):
+async def pay_invoice_legacy(request: PayInvoiceRequest):
     """
-    Pay a Lightning invoice via server
+    Legacy payment endpoint - redirects to new LND implementation
     """
     try:
+        # Use the new LND client
+        lnd_client = LndClient(
+            rest_url=os.getenv("LND_REST_URL"),
+            macaroon_path=os.getenv("LND_MACAROON_PATH"),
+            tls_cert_path=os.getenv("LND_TLS_CERT_PATH")
+        )
+        
         invoice = request.invoice.strip()
         
         # Basic invoice validation
@@ -85,31 +98,29 @@ async def pay_invoice(request: PayInvoiceRequest):
         if not re.match(r'^(lnbc|lntb|lnbcrt)', invoice.lower()):
             raise HTTPException(status_code=400, detail="Invalid invoice format")
         
-        # In a real implementation, you would:
-        # 1. Connect to LND node via gRPC or REST
-        # 2. Send payment using the invoice
-        # 3. Return payment result with preimage and fees
-        
-        # For demo purposes, simulate payment
-        import time
-        time.sleep(1)  # Simulate network delay
-        
-        # Simulate success/failure (70% success rate for demo)
-        import random
-        if random.random() > 0.3:
-            return PayInvoiceResponse(
-                success=True,
-                preimage="deadbeef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-                fee_sats=random.randint(1, 10)
-            )
-        else:
+        # Call LND
+        try:
+            res = lnd_client.pay_invoice(payment_request=invoice)
+            
+            if res.get("success"):
+                return PayInvoiceResponse(
+                    success=True,
+                    preimage=res.get("preimage"),
+                    fee_sats=res.get("fee_sat")
+                )
+            else:
+                return PayInvoiceResponse(
+                    success=False,
+                    error=res.get("error", "Payment failed")
+                )
+                
+        except LndClientError as e:
+            logger.error(f"LND payment error: {str(e)}")
             return PayInvoiceResponse(
                 success=False,
-                error="Payment failed - insufficient funds"
+                error=f"LND error: {str(e)}"
             )
             
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Payment error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Payment failed: {str(e)}")
@@ -117,17 +128,44 @@ async def pay_invoice(request: PayInvoiceRequest):
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "lightning-api"}
+    try:
+        # Check LND connection
+        lnd_client = LndClient(
+            rest_url=os.getenv("LND_REST_URL"),
+            macaroon_path=os.getenv("LND_MACAROON_PATH"),
+            tls_cert_path=os.getenv("LND_TLS_CERT_PATH")
+        )
+        info = lnd_client.get_info()
+        
+        return {
+            "status": "healthy", 
+            "service": "lightning-api",
+            "lnd_connected": True,
+            "node_id": info.get("identity_pubkey", "unknown"),
+            "synced": info.get("synced_to_chain", False)
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "lightning-api", 
+            "lnd_connected": False,
+            "error": str(e)
+        }
 
 # Root endpoint
 @app.get("/")
 async def root():
     return {
         "message": "SunuSàv Lightning API",
-        "version": "1.0.0",
+        "version": "2.0.0",
+        "lnd_integration": True,
         "endpoints": {
             "ln_parse": "/ln/parse",
             "lightning_pay": "/lightning/pay",
+            "lightning_pay_v2": "/lightning/pay",
+            "lightning_invoice": "/lightning/invoice",
+            "lightning_info": "/lightning/info",
+            "lightning_health": "/lightning/health",
             "health": "/health"
         }
     }

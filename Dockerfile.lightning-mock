@@ -1,0 +1,14 @@
+# Dockerfile.lightning-mock
+FROM python:3.9-alpine
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install fastapi uvicorn
+
+# Copy the mock Lightning API
+COPY backend/lightning_api.py .
+
+EXPOSE 8080
+
+CMD ["uvicorn", "lightning_api:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -28,8 +28,7 @@ export default function PayoutManager({ groupId }: PayoutManagerProps) {
 
   // Queries
   const { data: payoutHistory, refetch: refetchHistory } = trpc.payout.getHistory.useQuery(
-    { groupId },
-    { enabled: !!groupId }
+    { groupId }
   );
 
   const { data: upcomingPayouts, refetch: refetchUpcoming } = trpc.payout.getUpcoming.useQuery();
@@ -230,7 +229,7 @@ export default function PayoutManager({ groupId }: PayoutManagerProps) {
                   </Badge>
                 </div>
                 <div className="text-sm text-gray-500">
-                  Scheduled: {formatDate(payout.scheduledDate)}
+                  Scheduled: {formatDate(payout.scheduledDate.toString())}
                 </div>
                 {payout.winnerId && (
                   <div className="text-sm text-green-600">

@@ -1,9 +1,8 @@
-import { trpc } from "@/lib/trpc";
+import { trpc, trpcClient } from "@/lib/trpc";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink, TRPCClientError } from "@trpc/client";
+import { TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
-import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
@@ -35,29 +34,6 @@ queryClient.getMutationCache().subscribe(event => {
     redirectToLoginIfUnauthorized(error);
     console.error("[API Mutation Error]", error);
   }
-});
-
-const trpcClient = trpc.createClient({
-  links: [
-    httpBatchLink({
-      url: "/api/trpc",
-      transformer: superjson,
-      async fetch(input, init) {
-        // Get Supabase session token
-        const { supabase } = await import("@src/integrations/supabase/client");
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          credentials: "include",
-          headers: {
-            ...init?.headers,
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-          },
-        });
-      },
-    }),
-  ],
 });
 
 createRoot(document.getElementById("root")!).render(

@@ -35,18 +35,15 @@ export default function MultiSigWallet({ groupId, walletId }: MultiSigWalletProp
 
   // Queries
   const { data: wallet, refetch: refetchWallet } = trpc.multisig.getWallet.useQuery(
-    { walletId: walletId || '' },
-    { enabled: !!walletId }
+    { walletId: walletId || '' }
   );
 
   const { data: balance, refetch: refetchBalance } = trpc.multisig.getBalance.useQuery(
-    { walletId: walletId || '' },
-    { enabled: !!walletId }
+    { walletId: walletId || '' }
   );
 
   const { data: pendingTransactions, refetch: refetchTransactions } = trpc.multisig.getPendingTransactions.useQuery(
-    { walletId: walletId || '' },
-    { enabled: !!walletId }
+    { walletId: walletId || '' }
   );
 
   // Mutations
@@ -343,7 +340,7 @@ export default function MultiSigWallet({ groupId, walletId }: MultiSigWalletProp
                   <div className="space-y-2">
                     <Label className="text-sm">Signatures</Label>
                     <div className="space-y-1">
-                      {tx.transaction_signatures.map((sig, index) => (
+                      {tx.transaction_signatures.map((sig: any, index: number) => (
                         <div key={index} className="flex items-center gap-2 text-sm">
                           <CheckCircle className="h-4 w-4 text-green-500" />
                           <span className="font-mono text-xs">{sig.signature.substring(0, 20)}...</span>

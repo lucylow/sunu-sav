@@ -1,0 +1,169 @@
+# backend/monetization/docker-compose.yml
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: sunusav_monetization_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: sunusav_root_password
+      MYSQL_DATABASE: sunusav_monetization
+      MYSQL_USER: sunusav
+      MYSQL_PASSWORD: sunusav_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - sunusav_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis for Celery
+  redis:
+    image: redis:7-alpine
+    container_name: sunusav_monetization_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sunusav_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 20s
+      retries: 10
+
+  # Monetization API
+  monetization_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sunusav_monetization_api
+    environment:
+      - MONETIZATION_DATABASE_URL=mysql+pymysql://sunusav:sunusav_password@mysql:3306/sunusav_monetization
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - LND_HOST=localhost:10009
+      - LND_MACAROON_PATH=/app/lnd/admin.macaroon
+      - LND_TLS_CERT_PATH=/app/lnd/tls.cert
+      - WAVE_API_KEY=${WAVE_API_KEY:-mock_wave_key}
+      - ORANGE_API_KEY=${ORANGE_API_KEY:-mock_orange_key}
+      - MTN_API_KEY=${MTN_API_KEY:-mock_mtn_key}
+      - FALLBACK_BTC_XOF_RATE=8000000
+      - DEBUG=true
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+    ports:
+      - "8001:8001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - sunusav_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      timeout: 20s
+      retries: 10
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sunusav_monetization_worker
+    command: celery -A tasks worker --loglevel=info --concurrency=4
+    environment:
+      - MONETIZATION_DATABASE_URL=mysql+pymysql://sunusav:sunusav_password@mysql:3306/sunusav_monetization
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - LND_HOST=localhost:10009
+      - WAVE_API_KEY=${WAVE_API_KEY:-mock_wave_key}
+      - ORANGE_API_KEY=${ORANGE_API_KEY:-mock_orange_key}
+      - MTN_API_KEY=${MTN_API_KEY:-mock_mtn_key}
+      - FALLBACK_BTC_XOF_RATE=8000000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - sunusav_network
+
+  # Celery Beat (Scheduler)
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sunusav_monetization_beat
+    command: celery -A tasks beat --loglevel=info
+    environment:
+      - MONETIZATION_DATABASE_URL=mysql+pymysql://sunusav:sunusav_password@mysql:3306/sunusav_monetization
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - sunusav_network
+
+  # Flower (Celery Monitoring)
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sunusav_monetization_flower
+    command: celery -A tasks flower --port=5555
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - sunusav_network
+
+  # Mock Lightning Node (for development)
+  lnd_mock:
+    image: lightninglabs/lnd:latest
+    container_name: sunusav_monetization_lnd_mock
+    command: >
+      lnd --bitcoin.active=false
+          --bitcoin.testnet=false
+          --bitcoin.mainnet=false
+          --bitcoin.regtest=true
+          --rpc.listen=0.0.0.0:10009
+          --rest.listen=0.0.0.0:8080
+          --debuglevel=info
+          --no-macaroons
+    ports:
+      - "10009:10009"
+      - "8080:8080"
+    volumes:
+      - lnd_data:/root/.lnd
+    networks:
+      - sunusav_network
+
+volumes:
+  mysql_data:
+  redis_data:
+  lnd_data:
+
+networks:
+  sunusav_network:
+    driver: bridge

@@ -14,8 +14,16 @@ import Payment from "./pages/Payment";
 import UXShowcase from "./pages/UXShowcase";
 import SunuSavBrandShowcase from "./pages/SunuSavBrandShowcase";
 import OfflineFirstDemo from "./pages/OfflineFirstDemo";
+import DemoShowcase from "./pages/DemoShowcase";
+import AIFeatures from "./pages/AIFeatures";
+import AiDemoPage from "./pages/AiDemoPage";
 import { startSyncEngine } from "./lib/sync-engine";
 import { useEffect } from "react";
+
+// Wrapper component for Payment route
+function PaymentRoute({ params }: { params: any }) {
+  return <Payment groupId={params?.groupId} amount={params?.amount} />;
+}
 
 function Router() {
   return (
@@ -26,10 +34,13 @@ function Router() {
       <Route path="/groups" component={Groups} />
       <Route path="/groups/create" component={CreateGroup} />
       <Route path="/groups/:id" component={GroupDetail} />
-      <Route path="/payment" component={Payment} />
+      <Route path="/payment" component={PaymentRoute} />
       <Route path="/ux-showcase" component={UXShowcase} />
       <Route path="/brand-showcase" component={SunuSavBrandShowcase} />
       <Route path="/offline-demo" component={OfflineFirstDemo} />
+      <Route path="/demo" component={DemoShowcase} />
+      <Route path="/ai-features" component={AIFeatures} />
+      <Route path="/ai-demo" component={AiDemoPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

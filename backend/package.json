@@ -1,0 +1,33 @@
+{
+  "name": "sunusav-backend",
+  "version": "1.0.0",
+  "description": "SunuSàv Tontine Bitcoin Backend API",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "migrate": "echo 'Mock migration - no database needed'",
+    "seed": "echo 'Mock seeding - data created on startup'",
+    "demo": "node ../scripts/demo-happy-path.js",
+    "test": "echo 'No tests configured'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "uuid": "^9.0.1",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "bitcoin",
+    "lightning",
+    "tontine",
+    "api"
+  ],
+  "author": "SunuSàv Team",
+  "license": "MIT"
+}

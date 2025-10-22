@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  # Main application
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - AI_CREDIT_SERVICE_URL=http://ai-credit:8001
+      - AI_FRAUD_SERVICE_URL=http://ai-fraud:8002
+      - AI_INSIGHTS_SERVICE_URL=http://ai-insights:8003
+    depends_on:
+      - ai-credit
+      - ai-fraud
+      - ai-insights
+    networks:
+      - sunusav-network
+
+  # AI Credit Scoring Service
+  ai-credit:
+    build: ./services/ai-credit
+    ports:
+      - "8001:8001"
+    environment:
+      - MODEL_PATH=/app/models/credit_score_model.pkl
+    volumes:
+      - ai-credit-models:/app/models
+    networks:
+      - sunusav-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AI Fraud Detection Service
+  ai-fraud:
+    build: ./services/ai-fraud
+    ports:
+      - "8002:8002"
+    environment:
+      - MODELS_DIR=/app/models
+    volumes:
+      - ai-fraud-models:/app/models
+    networks:
+      - sunusav-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AI Insights Service
+  ai-insights:
+    build: ./services/ai-insights
+    ports:
+      - "8003:8003"
+    environment:
+      - DATA_DIR=/app/data
+    volumes:
+      - ai-insights-data:/app/data
+    networks:
+      - sunusav-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for AI service communication
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - sunusav-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=sunusav
+      - POSTGRES_USER=sunusav
+      - POSTGRES_PASSWORD=sunusav_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - sunusav-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sunusav"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Lightning Network Mock Service
+  lightning-mock:
+    build: ./Dockerfile.lightning-mock
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    networks:
+      - sunusav-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  ai-credit-models:
+  ai-fraud-models:
+  ai-insights-data:
+  redis-data:
+  postgres-data:
+
+networks:
+  sunusav-network:
+    driver: bridge

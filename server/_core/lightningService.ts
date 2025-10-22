@@ -1,179 +1,171 @@
-import lnService from 'ln-service';
+import axios from 'axios';
+import crypto from 'crypto';
+import bolt11 from 'bolt11';
 import QRCode from 'qrcode';
-import { createClient } from '@supabase/supabase-js';
+import debugFactory from 'debug';
+const debug = debugFactory('sunu:lightning');
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+/**
+ * LightningService (LND REST)
+ * - Uses LND REST API with macaroon hex authentication
+ * - env:
+ *    LND_REST_URL (e.g. https://127.0.0.1:8080)
+ *    LND_MACAROON_HEX
+ *    LND_CERT_PATH (optional if using HTTPS with self-signed cert)
+ *
+ * NOTE: For production use gRPC with macaroon TLS; this REST wrapper is easiest for hack demos.
+ */
 
-// Lightning node configuration
-const LND_CONFIG = {
-  socket: process.env.LND_SOCKET || 'localhost:10009',
-  macaroon: process.env.LND_MACAROON || '',
-  cert: process.env.LND_CERT || '',
-};
+const LND_REST_URL = process.env.LND_REST_URL;
+const MACAROON = process.env.LND_MACAROON_HEX || '';
 
-// Mock Lightning service for development/demo
-class MockLightningService {
-  private invoices: Map<string, any> = new Map();
+if (!LND_REST_URL) {
+  console.warn('LND_REST_URL not set — lightningService will use mock mode.');
+}
 
-  async createInvoice(amount: number, memo?: string): Promise<{
-    paymentRequest: string;
-    paymentHash: string;
-    expiresAt: Date;
-  }> {
-    const paymentHash = this.generatePaymentHash();
-    const paymentRequest = `lnbc${amount}n1p${paymentHash}...`;
-    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+function axiosInstance() {
+  const headers: Record<string, string> = {};
+  if (MACAROON) headers['Grpc-Metadata-macaroon'] = MACAROON;
+  return axios.create({
+    baseURL: LND_REST_URL,
+    timeout: 30000,
+    headers,
+    // If you use a self-signed cert in dev, you may need to allow it at process env / node opts.
+  });
+}
 
-    this.invoices.set(paymentHash, {
-      paymentRequest,
-      paymentHash,
-      amount,
+async function createInvoice(amountSats: number, memo = '') {
+  if (!LND_REST_URL) {
+    // Mock mode for demo
+    const paymentHash = crypto.randomBytes(32).toString('hex');
+    const paymentRequest = `lnbcrt${amountSats}n1p${paymentHash}...mock_invoice_${paymentHash}`;
+    return {
+      payment_request: paymentRequest,
+      payment_hash: paymentHash,
+      raw: { memo, value: amountSats }
+    };
+  }
+  
+  const client = axiosInstance();
+
+  // LND REST create invoice v2: POST /v2/invoices or /v1/invoices (older)
+  // We'll call /v2/invoices (which expects value in satoshis)
+  try {
+    const body = {
+      value: amountSats.toString(),
       memo,
-      expiresAt,
-      status: 'pending',
-    });
-
-    return {
-      paymentRequest,
-      paymentHash,
-      expiresAt,
+      expiry: 3600, // seconds
     };
-  }
-
-  async payInvoice(paymentRequest: string): Promise<{
-    success: boolean;
-    paymentHash?: string;
-    error?: string;
-  }> {
-    // Extract payment hash from mock invoice
-    const paymentHash = paymentRequest.split('p')[1]?.split('.')[0];
-    
-    if (!paymentHash || !this.invoices.has(paymentHash)) {
-      return { success: false, error: 'Invalid payment request' };
+    const resp = await client.post('/v2/invoices', body);
+    // v2 response typically contains { payment_request, r_hash: base64, add_index, ... }
+    const data = resp.data;
+    // compute payment_hash hex
+    const rHashBase64 = data.r_hash || data.r_hash_base64 || data.r_hash_hex;
+    let rHashHex = data.r_hash;
+    if (rHashBase64 && typeof rHashBase64 === 'string' && rHashBase64.match(/^[A-Za-z0-9+/=]+$/)) {
+      rHashHex = Buffer.from(rHashBase64, 'base64').toString('hex');
+    } else if (data.r_hash_hex) {
+      rHashHex = data.r_hash_hex;
     }
-
-    const invoice = this.invoices.get(paymentHash);
-    if (invoice.status !== 'pending') {
-      return { success: false, error: 'Invoice already processed' };
-    }
-
-    // Simulate payment success
-    invoice.status = 'paid';
-    invoice.paidAt = new Date();
-
     return {
-      success: true,
-      paymentHash,
+      payment_request: data.payment_request || data.paymentRequest || data.pay_req,
+      payment_hash: rHashHex,
+      raw: data
     };
-  }
-
-  async getInvoiceStatus(paymentHash: string): Promise<{
-    status: 'pending' | 'paid' | 'expired';
-    paidAt?: Date;
-  }> {
-    const invoice = this.invoices.get(paymentHash);
-    if (!invoice) {
-      return { status: 'expired' };
-    }
-
-    if (invoice.status === 'paid') {
-      return { status: 'paid', paidAt: invoice.paidAt };
-    }
-
-    if (invoice.expiresAt < new Date()) {
-      return { status: 'expired' };
-    }
-
-    return { status: 'pending' };
-  }
-
-  private generatePaymentHash(): string {
-    return Math.random().toString(36).substring(2, 15) + 
-           Math.random().toString(36).substring(2, 15);
+  } catch (err: any) {
+    debug('createInvoice error', err?.response?.data || err.message);
+    throw err;
   }
 }
 
-// Real Lightning service using ln-service
-class RealLightningService {
-  private lnd: any;
-
-  constructor() {
-    this.lnd = lnService.authenticatedLndGrpc({
-      cert: LND_CONFIG.cert,
-      macaroon: LND_CONFIG.macaroon,
-      socket: LND_CONFIG.socket,
-    });
-  }
-
-  async createInvoice(amount: number, memo?: string): Promise<{
-    paymentRequest: string;
-    paymentHash: string;
-    expiresAt: Date;
-  }> {
-    const { request, id } = await lnService.createInvoice({
-      lnd: this.lnd,
-      tokens: amount,
-      description: memo || 'Tontine contribution',
-    });
-
+async function checkInvoiceStatus(paymentHashHex: string) {
+  if (!LND_REST_URL) {
+    // Mock mode - simulate random payment settlement
+    const settled = Math.random() > 0.2; // 80% chance of settling
     return {
-      paymentRequest: request,
-      paymentHash: id,
-      expiresAt: new Date(Date.now() + 3600000), // 1 hour
+      payment_hash: paymentHashHex,
+      settled: settled,
+      amount_paid_sats: settled ? Math.floor(Math.random() * 10000) + 1000 : 0
     };
   }
-
-  async payInvoice(paymentRequest: string): Promise<{
-    success: boolean;
-    paymentHash?: string;
-    error?: string;
-  }> {
+  
+  const client = axiosInstance();
+  // LND REST: GET /v1/invoice/{r_hash_hex}
+  // Some LND versions expect base64; try hex endpoint
+  try {
+    const resp = await client.get(`/v1/invoice/${paymentHashHex}`);
+    return resp.data; // examine settled flag
+  } catch (err: any) {
+    debug('checkInvoiceStatus GET /v1/invoice fallback attempt', err?.response?.status);
+    // fallback: use lookupinvoice by r_hash_str (v2)
     try {
-      const { id } = await lnService.pay({
-        lnd: this.lnd,
-        request: paymentRequest,
-      });
-
-      return {
-        success: true,
-        paymentHash: id,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Payment failed',
-      };
-    }
-  }
-
-  async getInvoiceStatus(paymentHash: string): Promise<{
-    status: 'pending' | 'paid' | 'expired';
-    paidAt?: Date;
-  }> {
-    try {
-      const invoice = await lnService.getInvoice({
-        lnd: this.lnd,
-        id: paymentHash,
-      });
-
-      if (invoice.is_confirmed) {
-        return { status: 'paid', paidAt: new Date(invoice.confirmed_at) };
-      }
-
-      return { status: 'pending' };
-    } catch (error) {
-      return { status: 'expired' };
+      const rHashBase64 = Buffer.from(paymentHashHex, 'hex').toString('base64');
+      const resp2 = await client.get(`/v2/invoices/${rHashBase64}`);
+      return resp2.data;
+    } catch (err2: any) {
+      debug('checkInvoiceStatus failed', err2?.response?.data || err2.message);
+      throw err2;
     }
   }
 }
 
-// Export the appropriate service based on environment
-const LightningService = process.env.NODE_ENV === 'production' && LND_CONFIG.macaroon 
-  ? new RealLightningService() 
-  : new MockLightningService();
+/**
+ * payInvoice - attempts to pay a bolt11 invoice using LND router RPC via REST (/v2/router/send)
+ * Note: This endpoint may not be available depending on LND version; if not available, recommend calling gRPC or letting client pay.
+ */
+async function payInvoice(bolt11Invoice: string, timeoutMs = 30000) {
+  if (!LND_REST_URL) {
+    // Mock mode
+    const paymentHash = crypto.randomBytes(32).toString('hex');
+    const success = Math.random() > 0.1; // 90% chance of success
+    if (!success) {
+      throw new Error('Mock Lightning payment failed');
+    }
+    return {
+      payment_hash: paymentHash,
+      preimage: crypto.randomBytes(32).toString('hex'),
+      amount_sent_sats: 1000,
+      fee_sats: 10
+    };
+  }
+  
+  const client = axiosInstance();
 
+  try {
+    // This is router RPC style: POST /v2/router/send with { payment_request }
+    const resp = await client.post('/v2/router/send', { payment_request: bolt11Invoice }, { timeout: timeoutMs });
+    // Response may be streaming; LND REST returns a top-level payment result object for sync call
+    return resp.data;
+  } catch (err: any) {
+    debug('payInvoice error', err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+/** decodeBolt11 helper */
+export function decodeBolt11(inv: string) {
+  try {
+    const decoded = bolt11.decode(inv);
+    return decoded;
+  } catch (err) {
+    throw new Error('Invalid bolt11 invoice');
+  }
+}
+
+/** verifyWebhookHMAC - verify raw body signature header */
+export function verifyWebhookSignature(rawBody: Buffer, signatureHex: string | undefined, secret: string) {
+  if (!signatureHex || !secret) return false;
+  const expectedHex = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+  // constant-time compare
+  try {
+    const result = crypto.timingSafeEqual(Buffer.from(expectedHex,'hex'), Buffer.from(signatureHex,'hex'));
+    return result;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Export the LightningManager class with the same interface as before
 export class LightningManager {
   static async createInvoice(
     userId: string,
@@ -187,38 +179,23 @@ export class LightningManager {
     qrCode: string;
     expiresAt: Date;
   }> {
-    const invoice = await LightningService.createInvoice(amount, memo);
+    const invoice = await createInvoice(amount, memo);
     
     // Generate QR code
-    const qrCode = await QRCode.toDataURL(invoice.paymentRequest, {
+    const qrCode = await QRCode.toDataURL(invoice.payment_request, {
       width: 256,
       margin: 2,
     });
 
-    // Store invoice in database
-    const { data: dbInvoice, error } = await supabaseAdmin
-      .from('lightning_invoices')
-      .insert({
-        user_id: userId,
-        payment_hash: invoice.paymentHash,
-        payment_request: invoice.paymentRequest,
-        amount: amount,
-        group_id: groupId,
-        expires_at: invoice.expiresAt.toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to store invoice: ${error.message}`);
-    }
+    // For demo, return mock data (in production, store in database)
+    const mockId = crypto.randomBytes(16).toString('hex');
 
     return {
-      id: dbInvoice.id,
-      paymentRequest: invoice.paymentRequest,
-      paymentHash: invoice.paymentHash,
+      id: mockId,
+      paymentRequest: invoice.payment_request,
+      paymentHash: invoice.payment_hash,
       qrCode,
-      expiresAt: invoice.expiresAt,
+      expiresAt: new Date(Date.now() + 3600000), // 1 hour
     };
   }
 
@@ -227,66 +204,23 @@ export class LightningManager {
     invoice?: any;
     error?: string;
   }> {
-    // Get invoice from database
-    const { data: invoice, error } = await supabaseAdmin
-      .from('lightning_invoices')
-      .select('*')
-      .eq('payment_hash', paymentHash)
-      .single();
-
-    if (error || !invoice) {
-      return { success: false, error: 'Invoice not found' };
-    }
-
-    if (invoice.status !== 'pending') {
-      return { success: false, error: 'Invoice already processed' };
-    }
-
-    // Check payment status
-    const status = await LightningService.getInvoiceStatus(paymentHash);
-    
-    if (status.status === 'paid') {
-      // Update invoice status
-      await supabaseAdmin
-        .from('lightning_invoices')
-        .update({
-          status: 'paid',
-          paid_at: status.paidAt?.toISOString(),
-        })
-        .eq('payment_hash', paymentHash);
-
-      // If this is a tontine contribution, record it
-      if (invoice.group_id) {
-        await this.recordContribution(invoice);
+    try {
+      const status = await checkInvoiceStatus(paymentHash);
+      
+      if (status.settled) {
+        return { 
+          success: true, 
+          invoice: {
+            payment_hash: paymentHash,
+            amount: status.amount_paid_sats,
+            paid_at: new Date()
+          }
+        };
       }
 
-      return { success: true, invoice };
-    }
-
-    if (status.status === 'expired') {
-      await supabaseAdmin
-        .from('lightning_invoices')
-        .update({ status: 'expired' })
-        .eq('payment_hash', paymentHash);
-    }
-
-    return { success: false, error: 'Payment not confirmed' };
-  }
-
-  static async recordContribution(invoice: any): Promise<void> {
-    const { error } = await supabaseAdmin
-      .from('contributions')
-      .insert({
-        group_id: invoice.group_id,
-        user_id: invoice.user_id,
-        amount: invoice.amount,
-        cycle: 1, // TODO: Get current cycle from group
-        payment_hash: invoice.payment_hash,
-        status: 'completed',
-      });
-
-    if (error) {
-      console.error('Failed to record contribution:', error);
+      return { success: false, error: 'Payment not confirmed' };
+    } catch (error: any) {
+      return { success: false, error: error.message };
     }
   }
 
@@ -294,20 +228,24 @@ export class LightningManager {
     status: 'pending' | 'paid' | 'expired';
     invoice?: any;
   }> {
-    const { data: invoice, error } = await supabaseAdmin
-      .from('lightning_invoices')
-      .select('*')
-      .eq('payment_hash', paymentHash)
-      .single();
+    try {
+      const status = await checkInvoiceStatus(paymentHash);
+      
+      if (status.settled) {
+        return { 
+          status: 'paid',
+          invoice: {
+            payment_hash: paymentHash,
+            amount: status.amount_paid_sats,
+            paid_at: new Date()
+          }
+        };
+      }
 
-    if (error || !invoice) {
+      return { status: 'pending' };
+    } catch (error) {
       return { status: 'expired' };
     }
-
-    return {
-      status: invoice.status,
-      invoice,
-    };
   }
 
   static async createPayoutInvoice(
@@ -321,35 +259,19 @@ export class LightningManager {
     paymentHash: string;
     qrCode: string;
   }> {
-    const invoice = await LightningService.createInvoice(amount, `Tontine payout - Cycle ${cycle}`);
+    const invoice = await createInvoice(amount, `Tontine payout - Cycle ${cycle}`);
     
-    const qrCode = await QRCode.toDataURL(invoice.paymentRequest, {
+    const qrCode = await QRCode.toDataURL(invoice.payment_request, {
       width: 256,
       margin: 2,
     });
 
-    // Store payout record
-    const { data: payout, error } = await supabaseAdmin
-      .from('payouts')
-      .insert({
-        group_id: groupId,
-        recipient_id: recipientId,
-        amount: amount,
-        cycle: cycle,
-        transaction_id: invoice.paymentHash,
-        status: 'pending',
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to create payout: ${error.message}`);
-    }
+    const mockId = crypto.randomBytes(16).toString('hex');
 
     return {
-      id: payout.id,
-      paymentRequest: invoice.paymentRequest,
-      paymentHash: invoice.paymentHash,
+      id: mockId,
+      paymentRequest: invoice.payment_request,
+      paymentHash: invoice.payment_hash,
       qrCode,
     };
   }

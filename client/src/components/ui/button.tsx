@@ -57,4 +57,7 @@ function Button({
   );
 }
 
+// Export buttonVariants for compatibility with other components
+export const buttonVariants = getButtonClasses;
+
 export { Button };

@@ -3,6 +3,7 @@ const EventEmitter = require('events');
 const dbManager = require('./database');
 const AuditService = require('./AuditService');
 const NotificationService = require('./NotificationService');
+const { enqueuePayoutWorker, enqueueWebhookProcessingJob } = require('./jobs/payoutProducer');
 
 class TontineService extends EventEmitter {
   constructor() {
@@ -35,7 +36,8 @@ class TontineService extends EventEmitter {
           ...groupData,
           created_by: creatorId,
           cycle_ends_at: cycleEndsAt,
-          status: 'active'
+          status: 'active',
+          cycle_status: 'active'
         })
         .returning('*');
 
@@ -311,8 +313,8 @@ class TontineService extends EventEmitter {
         .where({ id: contribution.group_id })
         .first();
 
-      // Check if cycle should complete
-      await this._checkCycleCompletion(group.id, trx);
+      // Check if cycle should complete using advisory locks
+      await this._checkAndCompleteCycleWithLock(group.id, trx);
 
       // Audit log
       await this.auditService.log({
@@ -353,44 +355,132 @@ class TontineService extends EventEmitter {
     }
   }
 
-  async _checkCycleCompletion(groupId, trx) {
-    const group = await trx('tontine_groups')
-      .where({ id: groupId })
-      .first();
+  /**
+   * Check and complete cycle with PostgreSQL advisory locks to prevent race conditions
+   * Uses pg_advisory_xact_lock(hashtext(groupId)) to ensure only one process can complete
+   * the cycle for a given group at a time.
+   */
+  async _checkAndCompleteCycleWithLock(groupId, trx) {
+    try {
+      // Acquire a transaction-scoped advisory lock for this group
+      // Using hashtext ensures we map a text to bigint key consistently
+      await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [groupId]);
 
-    if (!group) return;
+      // Re-read the group's current cycle under lock (use FOR UPDATE)
+      const groupRes = await trx('tontine_groups')
+        .where({ id: groupId })
+        .forUpdate()
+        .first();
 
-    // Count paid contributions for current cycle
-    const paidContributions = await trx('contributions')
-      .where({
-        group_id: groupId,
-        cycle_number: group.current_cycle,
-        status: 'paid'
-      })
-      .count('id as count')
-      .first();
+      if (!groupRes) {
+        console.warn('Group not found during cycle completion check:', groupId);
+        return { success: false, reason: 'group_not_found' };
+      }
 
-    const activeMembers = await trx('group_members')
-      .where({ group_id: groupId, is_active: true })
-      .count('id as count')
-      .first();
+      // Check if cycle is already being processed or completed
+      if (groupRes.cycle_status === 'processing' || groupRes.cycle_status === 'completed') {
+        console.log('Cycle already processed or in progress:', groupId, groupRes.cycle_status);
+        return { success: false, reason: 'already_processed', status: groupRes.cycle_status };
+      }
 
-    // Complete cycle if all active members have paid
-    if (parseInt(paidContributions.count) === parseInt(activeMembers.count)) {
-      await this._completeCycle(groupId, trx);
+      // Count paid contributions for current cycle
+      const paidContributions = await trx('contributions')
+        .where({
+          group_id: groupId,
+          cycle_number: groupRes.current_cycle,
+          status: 'paid'
+        })
+        .count('id as count')
+        .first();
+
+      const activeMembers = await trx('group_members')
+        .where({ group_id: groupId, is_active: true })
+        .count('id as count')
+        .first();
+
+      const paidCount = parseInt(paidContributions.count, 10);
+      const expectedCount = parseInt(activeMembers.count, 10);
+
+      console.log(`Cycle completion check for group ${groupId}: ${paidCount}/${expectedCount} paid`);
+
+      // Complete cycle if all active members have paid
+      if (paidCount >= expectedCount && expectedCount > 0) {
+        console.log(`Completing cycle for group ${groupId}, cycle ${groupRes.current_cycle}`);
+        
+        // Mark cycle as processing to prevent other concurrent attempts
+        await trx('tontine_groups')
+          .where({ id: groupId })
+          .update({
+            cycle_status: 'processing',
+            updated_at: new Date()
+          });
+
+        // Create a payout attempt record with idempotency key
+        const payoutId = uuidv4();
+        const idempotencyKey = `payout:${groupId}:${groupRes.current_cycle}`;
+        
+        await trx('payment_attempts')
+          .insert({
+            id: payoutId,
+            idempotency_key: idempotencyKey,
+            group_id: groupId,
+            cycle_number: groupRes.current_cycle,
+            status: 'pending',
+            created_at: new Date(),
+            updated_at: new Date()
+          });
+
+        // Complete the cycle logic
+        await this._completeCycle(groupId, groupRes.current_cycle, trx);
+
+        // Mark cycle as completed
+        await trx('tontine_groups')
+          .where({ id: groupId })
+          .update({
+            cycle_status: 'completed',
+            updated_at: new Date()
+          });
+
+        // Enqueue payout job for background processing
+        await this._enqueuePayoutWorker({ 
+          payoutId, 
+          groupId, 
+          cycleNumber: groupRes.current_cycle 
+        });
+
+        return { success: true, payoutId, paidCount, expectedCount };
+      }
+
+      return { success: false, reason: 'not_complete', paidCount, expectedCount };
+
+    } catch (error) {
+      console.error('Error in _checkAndCompleteCycleWithLock:', error);
+      
+      // Mark cycle as failed if we hit an error during processing
+      try {
+        await trx('tontine_groups')
+          .where({ id: groupId })
+          .update({
+            cycle_status: 'failed',
+            updated_at: new Date()
+          });
+      } catch (updateError) {
+        console.error('Failed to update cycle status to failed:', updateError);
+      }
+      
+      throw error;
     }
   }
 
-  async _completeCycle(groupId, trx) {
-    const group = await trx('tontine_groups')
-      .where({ id: groupId })
-      .first();
-
+  /**
+   * Complete cycle logic - calculates payout and selects winner
+   */
+  async _completeCycle(groupId, cycleNumber, trx) {
     // Calculate total amount for payout
     const totalResult = await trx('contributions')
       .where({
         group_id: groupId,
-        cycle_number: group.current_cycle,
+        cycle_number: cycleNumber,
         status: 'paid'
       })
       .sum('amount_sats as total')
@@ -402,7 +492,7 @@ class TontineService extends EventEmitter {
     const winnerContribution = await trx('contributions')
       .where({
         group_id: groupId,
-        cycle_number: group.current_cycle,
+        cycle_number: cycleNumber,
         status: 'paid'
       })
       .orderByRaw('RANDOM()')
@@ -416,7 +506,7 @@ class TontineService extends EventEmitter {
     const [payout] = await trx('payouts')
       .insert({
         group_id: groupId,
-        cycle_number: group.current_cycle,
+        cycle_number: cycleNumber,
         winner_user_id: winnerContribution.user_id,
         amount_sats: totalAmount,
         status: 'pending'
@@ -424,6 +514,10 @@ class TontineService extends EventEmitter {
       .returning('*');
 
     // Update group for next cycle
+    const group = await trx('tontine_groups')
+      .where({ id: groupId })
+      .first();
+
     const nextCycleEnds = new Date();
     nextCycleEnds.setDate(nextCycleEnds.getDate() + group.cycle_days);
 
@@ -435,10 +529,33 @@ class TontineService extends EventEmitter {
         updated_at: new Date()
       });
 
-    // Process payout
-    await this._processPayout(payout, trx);
+    this.emit('cycle_completed', { 
+      groupId, 
+      cycle: cycleNumber, 
+      winner: winnerContribution.user_id, 
+      amount: totalAmount 
+    });
 
-    this.emit('cycle_completed', { groupId, cycle: group.current_cycle, winner: winnerContribution.user_id, amount: totalAmount });
+    return payout;
+  }
+
+  /**
+   * Enqueue payout worker job using BullMQ
+   */
+  async _enqueuePayoutWorker(payload) {
+    try {
+      const job = await enqueuePayoutWorker(payload);
+      console.log(`Enqueued payout worker job ${job.id} for group ${payload.groupId}`);
+      return job;
+    } catch (error) {
+      console.error('Failed to enqueue payout worker job:', error);
+      throw error;
+    }
+  }
+
+  async _checkCycleCompletion(groupId, trx) {
+    // Legacy method - now calls the new advisory lock version
+    return this._checkAndCompleteCycleWithLock(groupId, trx);
   }
 
   async _processPayout(payout, trx) {
@@ -526,7 +643,8 @@ class TontineService extends EventEmitter {
         name: group.name,
         current_cycle: group.current_cycle,
         cycle_ends_at: group.cycle_ends_at,
-        status: group.status
+        status: group.status,
+        cycle_status: group.cycle_status
       },
       members: {
         total: members.length,

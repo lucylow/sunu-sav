@@ -1,309 +1,731 @@
-# ⚡ Lightning-Powered Tontine Platform
+# SunuSàv — Our Savings, Our Future
 
-A revolutionary Bitcoin Lightning Network-based tontine platform designed for financial inclusion in West Africa. Built specifically for Senegal's market women and community savings circles, this platform combines traditional tontine practices with cutting-edge Bitcoin technology.
+**Bitcoin-powered digital tontines for Senegal**
 
-## 🌟 Key Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![Lightning Network](https://img.shields.io/badge/Lightning-Network-orange.svg)](https://lightning.network/)
+[![Senegal](https://img.shields.io/badge/Made%20for-Senegal-green.svg)](https://en.wikipedia.org/wiki/Senegal)
 
-- **⚡ Lightning Network Integration**: Instant, low-fee Bitcoin payments
-- **🔐 Multi-Signature Security**: 2-of-3 multisig wallets for secure fund management
-- **📱 Mobile-First Design**: Optimized for smartphones and feature phones
-- **🌍 Multi-Language Support**: French and Wolof language interfaces
-- **📶 Offline-First**: Works with poor connectivity using local data storage
-- **🔍 QR Code Payments**: Easy payment scanning for Lightning invoices
-- **🛡️ Enhanced Security**: Biometric authentication and encrypted storage
-- **📊 Real-Time Tracking**: Live payment status and contribution monitoring
+> **Open-source, mobile-first platform that digitizes West African tontines using Bitcoin Lightning Network**
 
-## 🏗️ System Architecture
+SunuSàv preserves communal savings rituals while reducing fraud and friction through Bitcoin's censorship-resistant, programmable money. Built specifically for Senegal's mobile money ecosystem with USSD fallback for feature phones.
 
-### High-Level Architecture
+## 🎯 Project Overview
+
+SunuSàv is an open-source platform that digitizes the West African tontine (susu) model using Bitcoin and Lightning Network. Our goals:
+
+- **Preserve communal savings rituals** while reducing fraud and friction
+- **Make saving accessible** on low-end phones (USSD fallback, offline sync)
+- **Use Lightning** for low-fee, fast payouts and optional on-chain settlement
+- **Prioritize security, transparency, and community governance**
+
+### Why SunuSàv?
+
+- **Tontines are deeply social** and already widely used — digital tooling should augment, not replace
+- **Lightning offers micro-sats economics** that make micro-savings practical
+- **Senegal has strong mobile money penetration** and large remittance flows — ideal for Lightning on-ramps/off-ramps
+- **Bitcoin's programmability** enables transparent, automated community fund management
+
+## 📁 What's in This Repo
+
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Mobile App    │◄──►│   Backend API    │◄──►│  Supabase DB    │
-│  (React/Vite)   │    │   (Node.js)      │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  Lightning Node │◄──►│  Bitcoin Network │    │   Audit Logger  │
-│   (Mock/LND)    │    │                  │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
+sunu-sav/
+├── backend/                    # Node.js backend (API, services, workers)
+│   ├── app.js                 # Main Express server
+│   ├── routes/                # API endpoints
+│   │   ├── tontine.js         # Core tontine logic
+│   │   ├── senegal.js         # Senegal-specific features
+│   │   └── webhook.js         # Lightning webhook handling
+│   ├── services/              # Business logic
+│   │   ├── TontineService.js  # Core tontine cycle management
+│   │   ├── SenegalTontineService.js # Senegal-specific logic
+│   │   ├── WaveMobileMoneyService.js # Wave integration
+│   │   ├── USSDService.js     # USSD menu system
+│   │   └── LightningService.js # LND integration
+│   ├── monetization/          # Monetization system (FastAPI)
+│   │   ├── models.py          # SQLAlchemy models
+│   │   ├── services/          # Fee calculation, payouts
+│   │   ├── api/               # FastAPI endpoints
+│   │   └── tasks.py           # Celery background tasks
+│   └── Dockerfile.backend
+├── client/                    # React frontend (web)
+│   ├── src/
+│   │   ├── pages/             # Main application screens
+│   │   ├── components/        # Reusable UI components
+│   │   ├── i18n/              # French & Wolof translations
+│   │   └── lib/               # Utilities & API client
+│   └── Dockerfile.frontend
+├── server/                    # tRPC server (existing)
+├── drizzle/                   # Database schema & migrations
+├── docs/                      # Architecture & API documentation
+├── docker-compose.yml         # Full stack orchestration
+└── start-demo.sh              # One-command demo setup
 ```
 
-### Core Components
+### Key Files to Inspect First
 
-1. **Frontend** (React + Vite)
-   - Multi-language support (French, Wolof)
-   - QR code scanning for Lightning payments
-   - Offline-first design for poor connectivity
-   - Mobile-optimized UI components
-
-2. **Backend Services** (Node.js + tRPC)
-   - REST API for user management
-   - Lightning node integration (LND/Mock)
-   - Multi-signature wallet management
-   - Automated payout scheduler
-
-3. **Database** (Supabase PostgreSQL)
-   - User profiles and authentication
-   - Tontine groups and members
-   - Payment tracking and audit logs
-   - Multi-signature wallet data
+- `backend/services/TontineService.js` — Core tontine cycle logic
+- `backend/services/SenegalTontineService.js` — Senegal-specific business logic
+- `backend/services/WaveMobileMoneyService.js` — Wave mobile money integration
+- `backend/monetization/services/payout.py` — Lightning payout orchestration
+- `client/src/pages/Groups.tsx` — Main tontine management interface
+- `client/src/components/SenegalSubscriptionManager.tsx` — Subscription management
+- `client/src/i18n/` — French & Wolof translations
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- npm or pnpm
-- Git
 
-### One-Command Setup
+- **Docker & Docker Compose** (v2 recommended)
+- **Node.js 18+** (for local dev tasks)
+- **Python 3.11+** (for monetization system)
+- **Optional**: LND testnet/regtest node (or use mock in docker-compose)
+
+### One-Command Demo (Docker)
+
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/sunu-sav.git
+git clone https://github.com/lucylow/sunu-sav.git
 cd sunu-sav
 
-# Run the demo script
-./demo.sh
+# Make start-demo.sh executable
+chmod +x start-demo.sh
+
+# Start everything (Postgres, Redis, backend, frontend, mock LND, monetization)
+./start-demo.sh
 ```
 
-The demo script will:
-- ✅ Install all dependencies
-- ✅ Start the development server
-- ✅ Run database migrations
-- ✅ Create demo data
-- ✅ Test Lightning payment flow
-- ✅ Test multi-signature wallet
-- ✅ Display access URLs
+The script:
+- Builds all containers
+- Runs DB migrations and seeds demo data
+- Starts backend API and frontend dev server
+- Starts monetization system (FastAPI + Celery)
+- Starts mock Lightning/testnet node
 
-### Manual Setup
+### Manual Development Setup
+
+#### Backend (Node.js)
 ```bash
-# Install dependencies
+cd backend
+cp .env.example .env           # Edit for local environment
 npm install
-
-# Start development server
-npm run dev
-
-# In another terminal, start the frontend
-npm run build:dev
+npm run migrate                # Run DB migrations
+npm run seed                   # Optional demo seed
+npm run dev                    # Start backend (nodemon)
 ```
 
-### Access Points
-After setup, access the application at:
-- **Frontend**: http://localhost:3000
-- **API**: http://localhost:3000/api
-- **Health Check**: http://localhost:3000/health
-
-## 💻 Technical Implementation
-
-### Lightning Network Integration
-```typescript
-// Create Lightning invoice
-const invoice = await LightningManager.createInvoice(
-  userId,
-  amount,
-  groupId,
-  memo
-);
-
-// Process payment
-const result = await LightningManager.processPayment(paymentHash);
-```
-
-### Multi-Signature Wallet
-```typescript
-// Create multi-sig wallet
-const wallet = await MultiSigManager.createWallet(
-  groupId,
-  memberIds,
-  requiredSignatures
-);
-
-// Sign transaction
-const result = await MultiSigManager.signTransaction(
-  transactionId,
-  userId,
-  signature
-);
-```
-
-### Database Schema
-```sql
--- Core tables
-CREATE TABLE profiles (id UUID PRIMARY KEY, name TEXT, email TEXT);
-CREATE TABLE tontine_groups (id UUID PRIMARY KEY, name TEXT, contribution_amount DECIMAL);
-CREATE TABLE multi_sig_wallets (id UUID PRIMARY KEY, address TEXT, public_keys TEXT[]);
-CREATE TABLE lightning_invoices (id UUID PRIMARY KEY, payment_request TEXT, amount DECIMAL);
-```
-
-## 🎯 Demo Scenarios
-
-### Scenario 1: Market Women Tontine
-1. **Create Group**: "Market Women Dakar" with 5 members
-2. **Set Contribution**: 10,000 sats weekly
-3. **Join Members**: QR code invitations
-4. **Lightning Payments**: Instant contributions via QR scan
-5. **Multi-Sig Setup**: 2-of-3 signature requirement
-6. **Automated Payout**: Random winner selection and Lightning payment
-
-### Scenario 2: Tech Entrepreneurs Pool
-1. **Create Group**: "Tech Entrepreneurs" with 10 members
-2. **Set Contribution**: 50,000 sats monthly
-3. **Advanced Features**: Multi-signature transactions
-4. **Real-Time Tracking**: Live payment status updates
-5. **Security**: Biometric authentication and encrypted storage
-
-## 🔐 Security Features
-
-### Multi-Signature Security Model
-```
-2-of-3 Multi-signature:
-- Key 1: Group organizer (mobile device)
-- Key 2: Random group member (rotates)
-- Key 3: Server-side (emergency recovery)
-
-Payout Process:
-1. Members contribute to multi-sig address
-2. After cycle completion, 2 signatures required
-3. Winner provides invoice, 2 members sign
-4. Funds released via Lightning
-```
-
-### Security Implementations
-- ✅ Input validation and sanitization
-- ✅ SQL injection prevention
-- ✅ PII protection in logs
-- ✅ Rate limiting
-- ✅ HTTPS enforcement
-- ✅ Secure headers
-- ✅ Multi-signature wallet security
-- ✅ Encrypted private key storage
-
-## 📊 Key Metrics & KPIs
-
-### Business Metrics
-- **User Adoption**: Target 1,000+ active users in first 3 months
-- **Transaction Volume**: 10M+ sats processed monthly
-- **Group Formation**: 200+ active tontine groups
-- **Retention Rate**: 70%+ monthly user retention
-
-### Technical Metrics
-- **Uptime**: 99.5%+ service availability
-- **Performance**: <200ms API response time
-- **Reliability**: <1% payment failure rate
-- **Security**: Zero critical vulnerabilities
-
-## 🌍 Localization & Cultural Adaptation
-
-### Language Support
-- **French**: Primary language for Senegal
-- **Wolof**: Local Senegalese language
-- **English**: International users
-
-### Cultural Features
-- Traditional tontine terminology
-- Local payment methods integration
-- Community-focused design
-- Trust-building mechanisms
-
-## 🚀 Next Iteration Features
-
-### Phase 2: Production Readiness
-| Feature | Priority | Est. Timeline | Impact |
-|---------|----------|---------------|---------|
-| **Real Lightning Integration** | High | 2-3 weeks | Enables real Bitcoin transactions |
-| **SMS Verification** | High | 1-2 weeks | Production-ready authentication |
-| **Mobile Money Integration** | Medium | 2-3 weeks | Local payment method support |
-| **Advanced Security** | High | 2 weeks | 2FA, biometric authentication |
-
-### Phase 3: Enhanced Features
-| Feature | Priority | Est. Timeline | Impact |
-|---------|----------|---------------|---------|
-| **USSD Interface** | High | 3-4 weeks | Feature phone accessibility |
-| **Offline USSD Fallback** | High | 2-3 weeks | Poor connectivity support |
-| **Advanced Analytics** | Low | 2 weeks | Business intelligence dashboard |
-| **Admin Dashboard** | Medium | 2 weeks | Group management and monitoring |
-
-## 🛠️ Development Setup
-
-### Environment Variables
+#### Monetization System (Python/FastAPI)
 ```bash
-# Backend (.env)
-VITE_SUPABASE_URL=your-supabase-url
-SUPABASE_SERVICE_ROLE_KEY=your-service-key
-LND_SOCKET=localhost:10009
-LND_MACAROON=your-macaroon
-LND_CERT=your-cert
-NODE_ENV=development
+cd backend/monetization
+cp env.example .env            # Configure database & API keys
+pip install -r requirements.txt
+python -m uvicorn main:app --host 0.0.0.0 --port 8001
 ```
 
-### Testing
+#### Frontend (React)
+```bash
+cd client
+npm install
+npm run dev                    # Vite dev server
+```
+
+### Health Checks & URLs
+
+- **Backend API**: http://localhost:3000
+- **Monetization API**: http://localhost:8001
+- **API Documentation**: http://localhost:8001/docs
+- **Frontend**: http://localhost:5173
+- **Celery Flower**: http://localhost:5555
+
+## 🏗️ Architecture
+
+### High-Level Architecture
+
+```mermaid
+flowchart TB
+    subgraph "Mobile/Web Clients"
+        A[React Web App]
+        B[USSD Gateway]
+        C[Feature Phones]
+    end
+    
+    subgraph "Backend Services"
+        D[Node.js API]
+        E[FastAPI Monetization]
+        F[Celery Workers]
+    end
+    
+    subgraph "Data Layer"
+        G[PostgreSQL]
+        H[Redis]
+    end
+    
+    subgraph "Bitcoin Infrastructure"
+        I[LND Node]
+        J[BTCPay Server]
+        K[Bitcoin Network]
+    end
+    
+    subgraph "Senegal Integrations"
+        L[Wave Mobile Money]
+        M[Orange Money]
+        N[SMS Gateway]
+    end
+    
+    A --> D
+    B --> D
+    C --> B
+    D --> E
+    D --> F
+    E --> F
+    D --> G
+    E --> G
+    F --> H
+    D --> I
+    E --> I
+    I --> J
+    J --> K
+    D --> L
+    D --> M
+    D --> N
+```
+
+### Data Flow (User Contribution)
+
+1. **User Contribution**: User scans QR/opens USSD → selects group → creates contribution intent
+2. **Invoice Creation**: Frontend calls backend → backend generates Lightning invoice via LightningService
+3. **Payment**: User pays using wallet (Alby/Zeus/phone) → LND sends webhook to backend
+4. **Verification**: Webhook verified (HMAC) → contribution marked verified in DB
+5. **Cycle Check**: `checkCycleCompletion` obtains advisory lock → enqueues payout job if cycle complete
+6. **Payout**: Worker processes payout → calls LND REST to pay winner → updates DB → emits notifications
+
+### Monetization Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend
+    participant M as Monetization API
+    participant L as LND
+    participant W as Wave API
+    
+    U->>F: Request payout
+    F->>B: Process payout
+    B->>M: Calculate fees
+    M->>M: Apply discounts (verified group, subscription)
+    M->>B: Return fee breakdown
+    B->>L: Create Lightning invoice
+    L->>B: Invoice created
+    B->>W: Cash-out to Wave
+    W->>U: XOF received
+    B->>M: Record fee allocation
+    M->>M: Update community fund
+```
+
+## ⚖️ Key Design Constraints & Tradeoffs
+
+### Non-custodial vs Hybrid
+- **MVP**: Hybrid multisig pattern (2/3) to balance usability & protection
+- **Long-term**: Favors non-custodial with user-controlled keys
+
+### Testnet First
+- Always develop and demo on testnet/regtest to avoid real-money risk
+- Production deployment requires explicit testnet → mainnet migration
+
+### Offline-First UX
+- Local DB (SQLite/AsyncStorage) is single source of truth on device
+- Server is authoritative when online
+- Queue writes for offline contributions
+
+### Low-Bandwidth Payloads
+- Keep JSON responses under ~5KB for key screens
+- Use caching & delta sync
+- Optimize for 2G/3G networks
+
+### Security vs UX
+- HMAC webhooks, least privilege macaroons
+- Easy onboarding (phone + USSD)
+- Balance security with accessibility
+
+## 🔒 Security by Design
+
+### High-Impact Patterns
+
+#### Webhook Verification (Raw Body HMAC)
+```javascript
+// Setup raw body capture
+app.use(bodyParser.json({ 
+  verify: (req, res, buf) => { req.rawBody = buf }
+}));
+
+// Verify webhook signature
+const sig = req.get('x-sunu-signature'); // hex
+const secret = process.env.WEBHOOK_HMAC_SECRET;
+const computed = crypto.createHmac('sha256', secret)
+  .update(req.rawBody).digest('hex');
+
+if (!crypto.timingSafeEqual(
+  Buffer.from(sig, 'hex'), 
+  Buffer.from(computed, 'hex')
+)) {
+  return res.status(401).send('Invalid signature');
+}
+```
+
+#### Least-Privilege LND Macaroons
+```javascript
+// Use restricted macaroon (payment-only, not admin)
+const macaroon = fs.readFileSync(process.env.LND_MACAROON_PATH);
+const headers = {
+  'Grpc-Metadata-macaroon': macaroon.toString('hex')
+};
+```
+
+#### Advisory Locks for Cycle Payouts
+```sql
+-- Prevent race conditions in payout processing
+SELECT pg_advisory_xact_lock(hashtext($1));
+-- Process payout...
+-- Lock automatically released on transaction end
+```
+
+#### Durable Background Jobs
+```python
+# Celery task with retry logic
+@celery.task(bind=True, max_retries=3)
+def process_payout(self, cycle_id):
+    try:
+        # Process payout logic
+        pass
+    except Exception as e:
+        if self.request.retries < self.max_retries:
+            raise self.retry(countdown=60 * (2 ** self.request.retries))
+        raise
+```
+
+### Security Checklist
+
+- ✅ **PII Scrubbing**: Redact phone numbers, invoices in logs
+- ✅ **Rate Limiting**: API keys for critical endpoints
+- ✅ **Idempotency**: Unique indexes on payment_attempts table
+- ✅ **TLS Verification**: LND client verifies TLS certificates
+- ✅ **Input Validation**: Sanitize all user inputs
+- ✅ **Audit Logging**: Complete transaction audit trail
+
+## 📱 Offline-First & Local Context Features
+
+### Local Single Source of Truth
+```javascript
+// SQLite schema for offline storage
+const schema = `
+  CREATE TABLE groups (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    contribution_amount INTEGER,
+    max_members INTEGER,
+    current_cycle INTEGER,
+    last_synced_at DATETIME
+  );
+`;
+```
+
+### Sync Runner
+```javascript
+// Background sync with exponential backoff
+class SyncRunner {
+  async syncPendingContributions() {
+    const pending = await this.getPendingContributions();
+    for (const contribution of pending) {
+      try {
+        await this.uploadContribution(contribution);
+        await this.markSynced(contribution.id);
+      } catch (error) {
+        await this.scheduleRetry(contribution.id);
+      }
+    }
+  }
+}
+```
+
+### USSD Fallback
+```
+SunuSàv Tontine Bitcoin
+1. Cotisation actuelle
+2. Mon solde
+3. Historique
+4. Prochain paiement
+5. Aide
+0. Quitter
+```
+
+## 🔌 Integrations
+
+### Lightning Network (LND REST)
+
+**Production Pattern:**
+```javascript
+class LndClient {
+  async createInvoice(memo, amountSats) {
+    const response = await this.client.post('/v1/invoices', {
+      memo,
+      value: amountSats,
+      expiry: 3600
+    });
+    return response.data;
+  }
+  
+  async sendPayment(paymentRequest) {
+    const response = await this.client.post('/v2/router/send', {
+      payment_request: paymentRequest,
+      timeout_seconds: 60
+    });
+    return response.data;
+  }
+}
+```
+
+**Security:**
+- Use restricted macaroon (payment-only)
+- TLS certificate verification
+- Watchtower integration for channel security
+
+### Wave Mobile Money Integration
+
+```javascript
+class WaveMobileMoneyService {
+  async cashOutToWave(phoneNumber, amountXof, reference) {
+    const requestBody = {
+      recipient_phone_number: this.formatSenegalPhoneNumber(phoneNumber),
+      amount: amountXof,
+      currency: 'XOF',
+      reference: reference
+    };
+    
+    const signature = this.generateSignature(requestBody);
+    const response = await axios.post(endpoint, requestBody, {
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'X-Wave-Signature': signature
+      }
+    });
+    
+    return response.data;
+  }
+}
+```
+
+### BTCPayServer Integration
+
+```javascript
+// Use BTCPay as payment gateway
+const btcpay = new BTCPayClient({
+  host: process.env.BTCPAY_HOST,
+  apiKey: process.env.BTCPAY_API_KEY
+});
+
+const invoice = await btcpay.createInvoice({
+  amount: amountSats,
+  currency: 'BTC',
+  description: 'SunuSàv Tontine Contribution'
+});
+```
+
+### Nostr Integration
+
+```javascript
+// Publish contribution proofs to Nostr
+const nostrEvent = {
+  kind: 30023, // Long-form content
+  content: `SunuSàv contribution proof\nHash: ${contributionHash}`,
+  tags: [
+    ['d', 'sunusav-contribution'],
+    ['hash', contributionHash]
+  ]
+};
+
+await this.publishToNostr(nostrEvent);
+```
+
+## 📊 Operational & Observability
+
+### Minimum Monitoring Stack
+
+- **Prometheus** + **Grafana** dashboards
+- **Error tracking** (Sentry)
+- **Structured JSON logs** → Logstash/ELK
+- **Alerts**: PagerDuty/Slack/Email
+
+### Essential Metrics
+
+```javascript
+// Prometheus metrics
+const promClient = require('prom-client');
+
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code']
+});
+
+const lndPaymentSuccess = new promClient.Counter({
+  name: 'lnd_payment_success_total',
+  help: 'Total successful Lightning payments'
+});
+
+const cycleCompletionRate = new promClient.Gauge({
+  name: 'tontine_cycle_completion_rate',
+  help: 'Percentage of cycles completed successfully'
+});
+```
+
+### Health Endpoints
+
+```javascript
+// /health endpoint
+app.get('/health', async (req, res) => {
+  const health = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    services: {
+      database: await checkDatabase(),
+      redis: await checkRedis(),
+      lnd: await checkLnd(),
+      monetization: await checkMonetizationAPI()
+    }
+  };
+  
+  const isHealthy = Object.values(health.services)
+    .every(service => service.status === 'healthy');
+  
+  res.status(isHealthy ? 200 : 503).json(health);
+});
+```
+
+## 📈 Metrics & KPIs
+
+### Product/Business Metrics
+
+```sql
+-- Daily Active Users
+SELECT COUNT(DISTINCT user_id) 
+FROM contributions 
+WHERE created_at >= CURRENT_DATE;
+
+-- Cycle Completion Rate
+SELECT 
+  COUNT(CASE WHEN status = 'completed' THEN 1 END) * 100.0 / COUNT(*) 
+FROM tontine_cycles 
+WHERE created_at >= CURRENT_DATE - INTERVAL '30 days';
+
+-- Average Group Size
+SELECT AVG(current_members) 
+FROM groups 
+WHERE status = 'active';
+```
+
+### System/Technical Metrics
+
+- **API Response Time**: p95, p99 latency
+- **Pending Payouts Queue**: BullMQ queue length
+- **LND Success Rate**: Payment success/failure ratio
+- **Worker Retry Rate**: Failed job retry percentage
+- **DB Error Rate**: Database connection failures
+- **Uptime**: Service availability percentage
+
+### Senegal-Specific Metrics
+
+```python
+# Wave cash-out success rate
+wave_success_rate = successful_wave_payouts / total_wave_payouts
+
+# USSD session completion rate
+ussd_completion_rate = completed_ussd_sessions / total_ussd_sessions
+
+# Language preference distribution
+language_distribution = {
+    'fr': french_users / total_users,
+    'wo': wolof_users / total_users,
+    'en': english_users / total_users
+}
+```
+
+## 🚢 Next Iteration — What We'll Ship
+
+### Short Term (0–6 weeks) — Pilot in Dakar
+
+**Core Features:**
+- ✅ **Real LND testnet integration** (replace mock)
+- ✅ **Worker queue for payouts** (BullMQ + Celery)
+- ✅ **Robust webhook verification** (HMAC raw-body)
+- ✅ **Offline queue & sync runner** in mobile app
+- ✅ **USSD gateway stub** for feature phones
+- ✅ **Wolof + French UX** for all core flows
+- ✅ **Basic analytics** (Prometheus + Grafana)
+
+**Senegal-Specific:**
+- ✅ **Wave mobile money integration** (API + cash-out)
+- ✅ **Holiday-aware scheduling** (Korité, Tabaski, etc.)
+- ✅ **Subscription tiers** (Pro: 500 XOF/month)
+- ✅ **Community fund transparency** (20% fee allocation)
+
+### Medium Term (6–16 weeks)
+
+**Pilot Expansion:**
+- **10–20 groups in Dakar** (100–200 users)
+- **Real pilot metrics collection**
+- **User feedback integration**
+
+**Technical Enhancements:**
+- **Fedimint/Cashu experiments** for semi-custodial liquidity
+- **AI credit scoring prototype** + micro-rewards
+- **Fraud detection pipeline** (anomaly scoring)
+- **Orange Money integration** (second mobile money provider)
+
+### Long Term (3–9 months)
+
+**Advanced Features:**
+- **Multi-node Lightning topology** and regional liquidity pools
+- **Governance & SAV token pilot** (experimental)
+- **Full KYC/AML compliance** workflow
+- **Production security audit** and penetration testing
+
+## 🧪 Development Workflow
+
+### Local Testing
+
 ```bash
 # Run all tests
-npm test
+npm test                    # Backend + frontend unit tests
+npm run test:integration    # Integration tests
+npm run test:e2e           # End-to-end tests
 
-# Unit tests only
-npm run test:unit
-
-# Integration tests
-npm run test:integration
-
-# Test coverage
-npm run test:coverage
+# Test specific components
+npm run test:backend        # Backend tests only
+npm run test:frontend       # Frontend tests only
+npm run test:monetization   # Monetization system tests
 ```
 
-## 📈 Success Metrics
+### CI/CD Pipeline
 
-### Business Impact
-- **Financial Inclusion**: Bringing Bitcoin to underserved communities
-- **Cost Reduction**: Eliminating traditional banking fees
-- **Speed**: Instant Lightning payments vs. days for traditional transfers
-- **Transparency**: Public blockchain for audit trails
+```yaml
+# .github/workflows/ci.yml
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Build containers
+        run: docker-compose build
+```
 
-### Technical Excellence
-- **Scalability**: Handles 1000+ concurrent users
-- **Reliability**: 99.9% uptime target
-- **Security**: Zero critical vulnerabilities
-- **Performance**: Sub-second response times
+### Code Style
 
-## 🤝 Contributing
+- **ESLint + Prettier** enforced in pre-commit hooks
+- **Conventional commits** & semantic release pipeline
+- **TypeScript** for type safety (gradual migration)
 
-### Development Workflow
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## 🤝 Contributing & Governance
 
-### Code Standards
-- TypeScript for type safety
-- ESLint for code quality
-- Prettier for formatting
-- Conventional commits for commit messages
-- 80%+ test coverage required
+### Development Process
 
-## 📄 License
+1. **Fork** the repository
+2. **Create feature branch**: `feature/short-description`
+3. **Make changes** with tests
+4. **Open PR** with clear description
+5. **Get review** from maintainers
+6. **Merge** after CI passes
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### Major Design Changes
 
-## 🙏 Acknowledgments
+- **RFC required** in `/docs/rfcs/`
+- **Maintainer review** + community input
+- **Core protocol changes** (payout logic, multisig rules) require consensus
 
+### Community Governance
+
+- **Maintainers**: Repository owners (see CODEOWNERS)
+- **Community Captains**: Pilot group leaders in Dakar
+- **Decisions**: Maintainers + community captains during pilot phase
+
+## 📄 License & Acknowledgements
+
+**License**: MIT (see [LICENSE](LICENSE) file)
+
+**Acknowledgements**:
 - Bitcoin Senegal community
-- Dakar Bitcoin Days organizers
 - Lightning Network developers
-- African Bitcoin community
-- Senegalese tontine practitioners
+- Pilot community partners in Dakar
+- Wave Mobile Money team
+- Open-source contributors
+
+## 🗺️ Where to Start Reading Code
+
+### For Backend Developers
+
+1. **`backend/services/TontineService.js`** — Core tontine business logic
+2. **`backend/services/SenegalTontineService.js`** — Senegal-specific extensions
+3. **`backend/routes/webhook.js`** — Lightning webhook handling
+4. **`backend/monetization/services/payout.py`** — Payout orchestration
+5. **`backend/services/WaveMobileMoneyService.js`** — Wave integration
+
+### For Frontend Developers
+
+1. **`client/src/pages/Groups.tsx`** — Main tontine management interface
+2. **`client/src/components/SenegalSubscriptionManager.tsx`** — Subscription management
+3. **`client/src/i18n/`** — French & Wolof translations
+4. **`client/src/components/WaveCashOutModal.tsx`** — Wave cash-out flow
+
+### For DevOps/Infrastructure
+
+1. **`docker-compose.yml`** — Full stack orchestration
+2. **`backend/monetization/docker-compose.yml`** — Monetization services
+3. **`start-demo.sh`** — Demo setup script
+4. **`backend/monetization/requirements.txt`** — Python dependencies
+
+## ✅ Pilot Checklist
+
+### Pre-Pilot Setup
+
+- [ ] **Provision LND testnet** with channels + liquidity
+- [ ] **Securely store macaroons & TLS certs** (never commit)
+- [ ] **Configure WEBHOOK_HMAC_SECRET** and distribute to LND
+- [ ] **Run migrations and seed data**
+- [ ] **Verify all health endpoints**
+
+### Pilot Execution
+
+- [ ] **Onboard 3–10 tontine groups** (30–100 users)
+- [ ] **Measure cycle_completion_rate** (target: >90%)
+- [ ] **Track payout_success_rate** (target: >95%)
+- [ ] **Monitor Wave cash-out success** (target: >95%)
+- [ ] **Collect user feedback** on USSD & low-bandwidth UX
+
+### Post-Pilot
+
+- [ ] **Analyze pilot metrics** and user feedback
+- [ ] **Iterate UX** based on real usage patterns
+- [ ] **Plan mainnet migration** strategy
+- [ ] **Scale to additional regions** (Mali, Burkina Faso)
 
 ---
 
-**Built with ❤️ for Senegal and the Bitcoin ecosystem**
+## 🎯 Mission Statement
 
-## 🎯 Hackathon Focus
+> **SunuSàv preserves the social fabric of West African tontines while leveraging Bitcoin's programmability to create transparent, efficient, and accessible communal savings tools.**
 
-This platform demonstrates:
-- **Technical Innovation**: Lightning Network + Multi-signature integration
-- **Social Impact**: Financial inclusion for underserved communities
-- **Cultural Sensitivity**: Respecting traditional tontine practices
-- **Scalability**: Architecture designed for growth
-- **Security**: Enterprise-grade security features
+**Built with ❤️ for Senegal, powered by ⚡ Lightning Network**
 
-**Perfect for**: Dakar Bitcoin Days hackathon showcasing Bitcoin's potential for African financial inclusion.
+---
+
+*For questions, issues, or contributions, please open an issue or start a discussion in the repository.*

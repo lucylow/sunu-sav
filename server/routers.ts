@@ -6,12 +6,19 @@ import { createClient } from "@supabase/supabase-js";
 import LightningManager from "./_core/lightningService";
 import MultiSigManager from "./_core/multiSigService";
 import PayoutManager from "./_core/payoutService";
+import { CreditAIService, FraudDetectionService, AIInsightsService, ChatAIService } from "./_core/services/AIService";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // Create a Supabase admin client for server-side operations
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+// Initialize AI services
+const creditAI = new CreditAIService();
+const fraudAI = new FraudDetectionService();
+const insightsAI = new AIInsightsService();
+const chatAI = new ChatAIService();
 
 export const appRouter = router({
   system: systemRouter,
@@ -241,7 +248,7 @@ export const appRouter = router({
 
           if (existing) {
             // Check if the timestamps are close enough to be considered the same action
-            const timeDiff = Math.abs(clientTime.getTime() - new Date(existing.created_at).getTime());
+            const timeDiff = Math.abs(clientTime.getTime() - new Date(existing.createdAt).getTime());
             if (timeDiff < 5000) { // 5 seconds tolerance
               return {
                 success: true,
@@ -489,126 +496,6 @@ export const appRouter = router({
     }),
   }),
 
-  wallet: router({
-    // Get wallet balance
-    getBalance: publicProcedure
-      .input(z.object({ address: z.string() }))
-      .query(async ({ input }) => {
-        try {
-          // In a real implementation, you would query a Bitcoin node or API
-          // This is a mock implementation for development
-          const mockBalance = {
-            confirmed: 100000, // 100,000 satoshis
-            unconfirmed: 0,
-            total: 100000,
-          };
-          
-          return { success: true, balance: mockBalance };
-        } catch (error) {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch balance' });
-        }
-      }),
-
-    // Get transaction history
-    getTransactionHistory: publicProcedure
-      .input(z.object({ address: z.string(), limit: z.number().default(50) }))
-      .query(async ({ input }) => {
-        try {
-          // Mock transaction history
-          const mockTransactions = [
-            {
-              txid: 'abc123def456789',
-              amount: 50000,
-              type: 'received',
-              timestamp: Date.now() - 86400000, // 1 day ago
-              confirmations: 6,
-            },
-            {
-              txid: 'def456ghi789012',
-              amount: -25000,
-              type: 'sent',
-              timestamp: Date.now() - 172800000, // 2 days ago
-              confirmations: 12,
-            },
-          ];
-          
-          return { success: true, transactions: mockTransactions };
-        } catch (error) {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch transaction history' });
-        }
-      }),
-
-    // Estimate transaction fee
-    estimateFee: publicProcedure
-      .input(z.object({ 
-        utxoCount: z.number(), 
-        outputCount: z.number().default(2) 
-      }))
-      .query(async ({ input }) => {
-        try {
-          // Simplified fee estimation
-          const estimatedSize = (input.utxoCount * 41) + (input.outputCount * 31) + 10;
-          const feeRate = 10; // satoshis per byte
-          const fee = estimatedSize * feeRate;
-          
-          return { success: true, fee };
-        } catch (error) {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to estimate fee' });
-        }
-      }),
-
-    // Broadcast transaction
-    broadcastTransaction: publicProcedure
-      .input(z.object({ hex: z.string() }))
-      .mutation(async ({ input }) => {
-        try {
-          // In a real implementation, you would broadcast to a Bitcoin node
-          // This is a mock implementation
-          const mockTxid = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          
-          return { success: true, txid: mockTxid };
-        } catch (error) {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to broadcast transaction' });
-        }
-      }),
-
-    // Get UTXOs for an address
-    getUTXOs: publicProcedure
-      .input(z.object({ address: z.string() }))
-      .query(async ({ input }) => {
-        try {
-          // Mock UTXOs
-          const mockUTXOs = [
-            {
-              txid: 'abc123def456789',
-              vout: 0,
-              value: 100000,
-              scriptPubKey: '0014' + 'a'.repeat(40),
-              confirmations: 6,
-            },
-          ];
-          
-          return { success: true, utxos: mockUTXOs };
-        } catch (error) {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch UTXOs' });
-        }
-      }),
-
-    // Validate Bitcoin address
-    validateAddress: publicProcedure
-      .input(z.object({ address: z.string() }))
-      .query(async ({ input }) => {
-        try {
-          // Simple validation - in real implementation, use bitcoinjs-lib
-          const isValid = input.address.startsWith('tb1q') || input.address.startsWith('bc1q');
-          
-          return { success: true, isValid };
-        } catch (error) {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to validate address' });
-        }
-      }),
-  }),
-
   payout: router({
     schedule: publicProcedure
       .input(
@@ -698,6 +585,148 @@ export const appRouter = router({
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
         }
       }),
+  }),
+
+  ai: router({
+    credit: router({
+      getScore: publicProcedure
+        .input(z.object({ userId: z.string() }))
+        .query(async ({ input }) => {
+          try {
+            const score = await creditAI.getUserCreditScore(input.userId);
+            return score;
+          } catch (error: any) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+          }
+        }),
+
+      getBatchScores: publicProcedure
+        .input(z.object({ userIds: z.array(z.string()) }))
+        .mutation(async ({ input }) => {
+          try {
+            const scores = await creditAI.getBatchCreditScores(input.userIds);
+            return scores;
+          } catch (error: any) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+          }
+        }),
+
+      updateScore: publicProcedure
+        .input(z.object({ userId: z.string(), score: z.number() }))
+        .mutation(async ({ input }) => {
+          try {
+            await creditAI.updateCreditScoreForUser(input.userId, input.score);
+            return { success: true };
+          } catch (error: any) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+          }
+        }),
+    }),
+
+    fraud: router({
+      detect: publicProcedure
+        .input(z.object({
+          transactionId: z.string(),
+          userId: z.string(),
+          amount: z.number(),
+          intervalTime: z.number().optional(),
+          numInvoices: z.number().optional(),
+          paymentFrequency: z.number().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          try {
+            const detection = await fraudAI.detectFraud(input);
+            return detection;
+          } catch (error: any) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+          }
+        }),
+
+      detectBatch: publicProcedure
+        .input(z.object({
+          transactions: z.array(z.object({
+            id: z.string(),
+            user_id: z.string(),
+            amount: z.number(),
+            interval_time: z.number().optional(),
+            num_invoices: z.number().optional(),
+            payment_frequency: z.number().optional(),
+          }))
+        }))
+        .mutation(async ({ input }) => {
+          try {
+            const detections = await fraudAI.detectBatchFraud(input.transactions);
+            return detections;
+          } catch (error: any) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+          }
+        }),
+    }),
+
+    insights: router({
+      projectSavings: publicProcedure
+        .input(z.object({
+          userId: z.string(),
+          weeklyAmountXOF: z.number(),
+          durationMonths: z.number(),
+          currentBtcPriceXOF: z.number().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          try {
+            const projection = await insightsAI.projectSavings(
+              input.userId,
+              input.weeklyAmountXOF,
+              input.durationMonths,
+              input.currentBtcPriceXOF
+            );
+            return projection;
+          } catch (error: any) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+          }
+        }),
+
+      getMarketInsights: publicProcedure
+        .query(async () => {
+          try {
+            const insights = await insightsAI.getMarketInsights();
+            return insights;
+          } catch (error: any) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+          }
+        }),
+
+      getInflationHistory: publicProcedure
+        .input(z.object({ days: z.number().optional() }))
+        .query(async ({ input }) => {
+          try {
+            const history = await insightsAI.getInflationHistory(input.days || 30);
+            return history;
+          } catch (error: any) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+          }
+        }),
+    }),
+
+    chat: router({
+      sendMessage: publicProcedure
+        .input(z.object({
+          message: z.string(),
+          language: z.string().default('en'),
+          userId: z.string().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          try {
+            const response = await chatAI.processMessage(
+              input.message,
+              input.language,
+              input.userId
+            );
+            return response;
+          } catch (error: any) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+          }
+        }),
+    }),
   }),
 });
 

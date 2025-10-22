@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Keystore, WalletData } from '../services/wallet/keystore';
-import { walletService, BalanceInfo } from '../services/wallet/walletService';
+import { walletService, BalanceInfo, WalletService } from '../services/wallet/walletService';
 import { useNetworkQuality } from '../services/offline/networkMonitor';
 import { OfflineIndicator } from './OfflineIndicator';
 
@@ -170,7 +170,7 @@ export function BitcoinWallet({ onWalletCreated, onWalletRestored }: BitcoinWall
       
       Alert.alert(
         'Transaction Sent!',
-        `Transaction ID: ${result.txid}\nFee: ${walletService.formatAmount(result.fee)}`,
+        `Transaction ID: ${result.txid}\nFee: ${WalletService.formatAmount(result.fee)}`,
         [
           {
             text: 'OK',
@@ -392,14 +392,14 @@ export function BitcoinWallet({ onWalletCreated, onWalletRestored }: BitcoinWall
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Total Balance</Text>
           <Text style={styles.balanceAmount}>
-            {walletService.formatAmount(balance.total)}
+            {WalletService.formatAmount(balance.total)}
           </Text>
           <Text style={styles.balanceSubtext}>
-            Confirmed: {walletService.formatAmount(balance.confirmed)}
+            Confirmed: {WalletService.formatAmount(balance.confirmed)}
           </Text>
           {balance.unconfirmed > 0 && (
             <Text style={styles.balanceSubtext}>
-              Pending: {walletService.formatAmount(balance.unconfirmed)}
+              Pending: {WalletService.formatAmount(balance.unconfirmed)}
             </Text>
           )}
         </View>
@@ -467,7 +467,7 @@ export function BitcoinWallet({ onWalletCreated, onWalletRestored }: BitcoinWall
           />
 
           <Text style={styles.availableText}>
-            Available: {walletService.formatAmount(balance.total)}
+            Available: {WalletService.formatAmount(balance.total)}
           </Text>
 
           <View style={styles.modalButtonContainer}>

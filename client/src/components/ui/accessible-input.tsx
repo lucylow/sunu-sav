@@ -5,7 +5,7 @@ import { Label } from './label';
 import { Button } from './button';
 import { AlertCircle, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
 
-interface AccessibleInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface AccessibleInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   label: string;
   error?: string;
   helperText?: string;
@@ -14,7 +14,7 @@ interface AccessibleInputProps extends React.InputHTMLAttributes<HTMLInputElemen
   rightIcon?: React.ReactNode;
   onRightIconClick?: () => void;
   variant?: 'default' | 'filled' | 'outlined';
-  size?: 'sm' | 'md' | 'lg';
+  inputSize?: 'sm' | 'md' | 'lg';
 }
 
 export const AccessibleInput: React.FC<AccessibleInputProps> = ({
@@ -26,7 +26,7 @@ export const AccessibleInput: React.FC<AccessibleInputProps> = ({
   rightIcon,
   onRightIconClick,
   variant = 'default',
-  size = 'md',
+  inputSize = 'md',
   className,
   id,
   ...props
@@ -84,7 +84,7 @@ export const AccessibleInput: React.FC<AccessibleInputProps> = ({
           ref={inputRef}
           id={inputId}
           className={cn(
-            sizeClasses[size],
+            sizeClasses[inputSize],
             variantClasses[variant],
             focusClasses,
             errorClasses,

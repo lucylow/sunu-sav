@@ -111,14 +111,14 @@ export const SyncStatusIndicator: React.FC<{ className?: string }> = ({ classNam
   const getStatusIcon = () => {
     if (!isOnline) return <WifiOff className="w-4 h-4 text-orange-500" />;
     if (syncStatus?.syncInProgress) return <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />;
-    if (syncStatus?.pendingCount > 0) return <Clock className="w-4 h-4 text-yellow-500" />;
+    if (syncStatus?.pendingCount && syncStatus.pendingCount > 0) return <Clock className="w-4 h-4 text-yellow-500" />;
     return <CheckCircle className="w-4 h-4 text-green-500" />;
   };
 
   const getStatusText = () => {
     if (!isOnline) return 'Hors ligne';
     if (syncStatus?.syncInProgress) return 'Synchronisation...';
-    if (syncStatus?.pendingCount > 0) return `${syncStatus.pendingCount} en attente`;
+    if (syncStatus?.pendingCount && syncStatus.pendingCount > 0) return `${syncStatus.pendingCount} en attente`;
     return 'Synchronisé';
   };
 

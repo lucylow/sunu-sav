@@ -1,66 +1,51 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { brandColors, designTokens } from '@/lib/design-system';
 import { Zap } from 'lucide-react';
 
-const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-  {
-    variants: {
-      variant: {
-        // Primary brand button with warm orange
-        default: 'bg-orange-500 text-white shadow-md hover:bg-orange-600 hover:shadow-lg active:bg-orange-700',
-        
-        // Secondary with gold accent
-        secondary: 'bg-gold-100 text-gold-800 border border-gold-200 hover:bg-gold-200 hover:border-gold-300',
-        
-        // Destructive with warm red
-        destructive: 'bg-red-500 text-white shadow-md hover:bg-red-600 hover:shadow-lg',
-        
-        // Outline with brand colors
-        outline: 'border border-orange-300 bg-transparent text-orange-700 hover:bg-orange-50 hover:border-orange-400',
-        
-        // Ghost variant
-        ghost: 'text-orange-700 hover:bg-orange-50',
-        
-        // Link variant
-        link: 'text-orange-600 underline-offset-4 hover:underline',
-        
-        // Lightning theme variant
-        lightning: 'bg-gradient-to-r from-orange-500 to-gold-500 text-white shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-gold-600',
-        
-        // Community variant for group actions
-        community: 'bg-gradient-to-r from-orange-400 to-orange-600 text-white shadow-md hover:shadow-lg hover:from-orange-500 hover:to-orange-700',
-      },
-      size: {
-        sm: 'h-9 px-3 text-xs',
-        default: 'h-11 px-6 text-sm',
-        lg: 'h-12 px-8 text-base',
-        xl: 'h-14 px-10 text-lg',
-        icon: 'h-11 w-11',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default',
-    },
-  }
-);
+// Simplified button variants without class-variance-authority
+const getButtonClasses = (variant?: string, size?: string, className?: string) => {
+  const baseClasses = 'inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
+  
+  const variantClasses = {
+    default: 'bg-orange-500 text-white shadow-md hover:bg-orange-600 hover:shadow-lg active:bg-orange-700',
+    secondary: 'bg-yellow-100 text-yellow-800 border border-yellow-200 hover:bg-yellow-200 hover:border-yellow-300',
+    destructive: 'bg-red-500 text-white shadow-md hover:bg-red-600 hover:shadow-lg',
+    outline: 'border border-orange-300 bg-transparent text-orange-700 hover:bg-orange-50 hover:border-orange-400',
+    ghost: 'text-orange-700 hover:bg-orange-50',
+    link: 'text-orange-600 underline-offset-4 hover:underline',
+    lightning: 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-yellow-600',
+    community: 'bg-gradient-to-r from-orange-400 to-orange-600 text-white shadow-md hover:shadow-lg hover:from-orange-500 hover:to-orange-700',
+  };
+  
+  const sizeClasses = {
+    sm: 'h-9 px-3 text-xs',
+    default: 'h-11 px-6 text-sm',
+    lg: 'h-12 px-8 text-base',
+    xl: 'h-14 px-10 text-lg',
+    icon: 'h-11 w-11',
+  };
+  
+  return cn(
+    baseClasses,
+    variantClasses[variant as keyof typeof variantClasses] || variantClasses.default,
+    sizeClasses[size as keyof typeof sizeClasses] || sizeClasses.default,
+    className
+  );
+};
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link" | "lightning" | "community";
+  size?: "sm" | "default" | "lg" | "xl" | "icon";
   asChild?: boolean;
   loading?: boolean;
   showLightning?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, loading = false, showLightning = false, children, ...props }, ref) => {
+  ({ className, variant = "default", size = "default", asChild = false, loading = false, showLightning = false, children, ...props }, ref) => {
     return (
       <button
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={getButtonClasses(variant, size, className)}
         ref={ref}
         disabled={loading || props.disabled}
         {...props}
@@ -100,4 +85,4 @@ export const JoinGroupButton: React.FC<ButtonProps> = ({ children, ...props }) =
   </Button>
 );
 
-export { Button, buttonVariants };
+export { Button };

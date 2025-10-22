@@ -69,5 +69,5 @@ export function useLanguage() {
 // Convenience hook for translations
 export function useTranslation() {
   const { t, currentLanguage } = useLanguage();
-  return { t, i18n: { language: currentLanguage } };
+  return { t, currentLanguage };
 }

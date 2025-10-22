@@ -5,6 +5,9 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const morgan = require('morgan');
 const dbManager = require('./database');
+const { setupRawBody, verifyWebhookSecret } = require('./middleware/webhookVerification');
+const { enqueueWebhookProcessingJob } = require('./jobs/payoutProducer');
+const workerManager = require('./workers/workerManager');
 
 class TontineApp {
   constructor() {
@@ -36,6 +39,12 @@ class TontineApp {
       
       // Setup graceful shutdown
       this.setupGracefulShutdown();
+
+      // Start background workers
+      await workerManager.start({
+        payoutConcurrency: parseInt(process.env.PAYOUT_WORKER_CONCURRENCY) || 2,
+        webhookConcurrency: parseInt(process.env.WEBHOOK_WORKER_CONCURRENCY) || 5
+      });
 
       console.log('✅ Tontine application initialized successfully');
       
@@ -92,18 +101,8 @@ class TontineApp {
     // Compression
     this.app.use(compression());
 
-    // Body parsing with limits
-    this.app.use(express.json({
-      limit: '10mb',
-      verify: (req, res, buf) => {
-        req.rawBody = buf;
-      }
-    }));
-    
-    this.app.use(express.urlencoded({
-      extended: true,
-      limit: '10mb'
-    }));
+    // Setup raw body capture for webhook verification
+    setupRawBody(this.app);
 
     // Logging with PII scrubbing
     this.app.use(morgan('combined', {
@@ -156,12 +155,17 @@ class TontineApp {
         const db = dbManager.getDb();
         await db.raw('SELECT 1');
         
+        // Get worker health status
+        const workerHealth = await workerManager.healthCheck();
+        
         res.json({
           status: 'healthy',
           services: {
             database: 'connected',
-            api: 'running'
+            api: 'running',
+            workers: workerHealth.healthy ? 'running' : 'unhealthy'
           },
+          workers: workerHealth,
           system: {
             uptime: process.uptime(),
             memory: process.memoryUsage(),
@@ -176,6 +180,19 @@ class TontineApp {
       }
     });
 
+    // Worker statistics endpoint
+    this.app.get('/health/workers', async (req, res) => {
+      try {
+        const stats = await workerManager.getStats();
+        res.json(stats);
+      } catch (error) {
+        res.status(500).json({
+          error: 'Failed to get worker stats',
+          message: error.message
+        });
+      }
+    });
+
     // API routes
     const TontineController = require('./controllers/TontineController');
     const tontineController = new TontineController();
@@ -185,24 +202,47 @@ class TontineApp {
     
     this.app.use('/api/tontine', router);
 
-    // Webhook endpoints
-    this.app.post('/webhook/lightning', async (req, res) => {
-      try {
-        const { payment_hash, status } = req.body;
-        
-        if (status === 'settled') {
-          const TontineService = require('./services/TontineService');
-          const tontineService = new TontineService();
+    // Webhook endpoints with HMAC verification and background processing
+    this.app.post('/webhook/lightning', 
+      verifyWebhookSecret({ 
+        headerName: 'x-sunu-signature', 
+        secretEnv: 'WEBHOOK_HMAC_SECRET' 
+      }), 
+      async (req, res) => {
+        try {
+          const { payment_hash, status } = req.body;
           
-          await tontineService.processPayment(payment_hash, req.ip);
+          console.log(`Received Lightning webhook for payment ${payment_hash}, status: ${status}`);
+          
+          // Enqueue webhook for background processing
+          const job = await enqueueWebhookProcessingJob({
+            payment_hash,
+            status,
+            metadata: {
+              ipAddress: req.ip,
+              userAgent: req.get('User-Agent'),
+              timestamp: new Date().toISOString()
+            }
+          });
+          
+          console.log(`Enqueued webhook job ${job.id} for payment ${payment_hash}`);
+          
+          // Respond immediately to webhook sender
+          res.json({ 
+            received: true, 
+            job_id: job.id,
+            timestamp: new Date().toISOString() 
+          });
+        } catch (error) {
+          console.error('Webhook processing error:', error);
+          res.status(500).json({ 
+            error: 'Webhook processing failed',
+            error_code: 'WEBHOOK_PROCESSING_ERROR',
+            timestamp: new Date().toISOString()
+          });
         }
-        
-        res.json({ received: true });
-      } catch (error) {
-        console.error('Webhook processing error:', error);
-        res.status(500).json({ error: 'Webhook processing failed' });
       }
-    });
+    );
 
     // 404 handler
     this.app.use('*', (req, res) => {
@@ -251,6 +291,10 @@ class TontineApp {
           console.log('📡 HTTP server closed');
           
           try {
+            // Stop background workers
+            await workerManager.stop();
+            console.log('👷 Background workers stopped');
+            
             // Close database connections
             await dbManager.close();
             console.log('🗄️ Database connections closed');

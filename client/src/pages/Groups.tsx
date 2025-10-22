@@ -11,7 +11,8 @@ import { useTranslation } from "@/hooks/useLanguage";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { 
   Users, Calendar, Coins, ArrowRight, Plus, Bitcoin, 
-  Clock, CheckCircle, AlertCircle, MoreVertical, Zap
+  Clock, CheckCircle, AlertCircle, MoreVertical, Zap,
+  Smartphone, Globe, CreditCard, TrendingUp, Shield
 } from "lucide-react";
 import { APP_TITLE } from "@/const";
 import { NetworkAware } from "@/components/ui/network-aware";
@@ -21,13 +22,14 @@ import { SearchInput } from "@/components/ui/accessible-input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
-// Enhanced TontineCard component with compact, scannable design
+// Enhanced TontineCard component with Senegal-specific features
 const TontineCard = React.memo(({ group, onPay, onManage }: { 
   group: any; 
   onPay: (group: any) => void;
   onManage: (group: any) => void;
 }) => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   
   // Calculate payment status and urgency
   const paymentStatus = useMemo(() => {
@@ -40,6 +42,25 @@ const TontineCard = React.memo(({ group, onPay, onManage }: {
     if (daysUntilDue <= 3) return { status: 'due', urgency: 'medium', text: `${daysUntilDue}d` };
     return { status: 'upcoming', urgency: 'low', text: `${daysUntilDue}d` };
   }, [group.nextPayoutDate]);
+
+  // Calculate fee information
+  const feeInfo = useMemo(() => {
+    if (!group.contributionAmount || !group.maxMembers) return null;
+    
+    const payoutTotal = group.contributionAmount * group.maxMembers;
+    const baseFee = Math.floor(payoutTotal * 0.01); // 1% base fee
+    const platformShare = Math.floor(baseFee * 0.5); // 50% to platform
+    const communityShare = Math.floor(baseFee * 0.2); // 20% to community
+    const partnerReserve = Math.floor(baseFee * 0.3); // 30% to partners
+    
+    return {
+      totalFee: baseFee,
+      platformShare,
+      communityShare,
+      partnerReserve,
+      netPayout: payoutTotal - baseFee
+    };
+  }, [group.contributionAmount, group.maxMembers]);
 
   // Calculate progress percentage
   const progressPercentage = useMemo(() => {
@@ -128,6 +149,52 @@ const TontineCard = React.memo(({ group, onPay, onManage }: {
             <div className="text-xs text-gray-600">cycle</div>
           </div>
         </div>
+
+        {/* Senegal-specific features */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {group.isVerified && (
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              <Shield className="h-3 w-3 mr-1" />
+              Verified
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-blue-600 border-blue-200">
+            <Smartphone className="h-3 w-3 mr-1" />
+            Wave Cash-out
+          </Badge>
+          <Badge variant="outline" className="text-purple-600 border-purple-200">
+            <Globe className="h-3 w-3 mr-1" />
+            USSD Available
+          </Badge>
+        </div>
+
+        {/* Fee transparency */}
+        {feeInfo && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-gray-700">Fee Breakdown</h4>
+              <TrendingUp className="h-4 w-4 text-gray-500" />
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex justify-between">
+                <span>Platform:</span>
+                <span className="font-medium">{feeInfo.platformShare} sats</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Community:</span>
+                <span className="font-medium text-green-600">{feeInfo.communityShare} sats</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Partner:</span>
+                <span className="font-medium text-blue-600">{feeInfo.partnerReserve} sats</span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span>Net Payout:</span>
+                <span className="text-orange-600">{feeInfo.netPayout.toLocaleString()} sats</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Progress bar */}
         <div className="mb-4">
