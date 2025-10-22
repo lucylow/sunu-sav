@@ -586,7 +586,7 @@ declare module '../storage/db.js' {
   export const db: any;
 }
 
-declare module '../../ai/mockAiClient.js' {
+declare module '../../ai/mockAiClient' {
   export class MockAiClient {
     constructor();
     getCreditScore(userId: string): Promise<any>;

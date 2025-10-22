@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, Calendar, Users, AlertTriangle } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient.js';
+import aiClient from '../../ai/mockAiClient';
 
 interface PredictiveDashboardProps {
   groupId: string;
@@ -24,8 +24,10 @@ export default function PredictiveDashboard({ groupId }: PredictiveDashboardProp
     let mounted = true;
     (async () => {
       try {
-        const pred = await aiClient.predictGroupCompletion({ groupId });
-        if (mounted) setPrediction(pred);
+        const response = await aiClient.predictGroupCompletion('user123');
+        if (mounted && response.success) {
+          setPrediction(response.data);
+        }
       } catch (error) {
         console.error('Prediction error:', error);
       } finally {

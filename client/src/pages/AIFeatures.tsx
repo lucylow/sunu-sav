@@ -24,7 +24,7 @@ interface AIFeaturesPageProps {
   userId?: string;
 }
 
-export default function AIFeaturesPage({ userId }: AIFeaturesPageProps) {
+export default function AIFeaturesPage({ userId = 'demo-user' }: AIFeaturesPageProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const { t } = useLanguage();
 

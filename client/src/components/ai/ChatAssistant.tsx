@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Mic, MicOff, Send, Volume2, VolumeX } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient.js';
+import aiClient from '../../ai/mockAiClient';
 
 interface ChatAssistantProps {
   userId: string;
@@ -41,9 +41,11 @@ export default function ChatAssistant({ userId }: ChatAssistantProps) {
     setText('');
     
     try {
-      const reply = await aiClient.chat({ userId, message: msg, language: selectedLanguage });
-      setMessages(m => [...m, { who: 'ai', text: reply.text, ts: reply.timestamp }]);
-      speak(reply.text, selectedLanguage);
+      const response = await aiClient.chat(msg, { userId, language: selectedLanguage });
+      if (response.success) {
+        setMessages(m => [...m, { who: 'ai', text: response.data.response, ts: new Date().toISOString() }]);
+        speak(response.data.response, selectedLanguage);
+      }
     } catch (error) {
       console.error('Chat error:', error);
       setMessages(m => [...m, { 

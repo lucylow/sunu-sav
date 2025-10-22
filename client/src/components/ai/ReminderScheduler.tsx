@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Bell, Smartphone, MessageSquare } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient.js';
+import aiClient from '../../ai/mockAiClient';
 
 interface ReminderSchedulerProps {
   userId: string;
@@ -24,8 +24,10 @@ export default function ReminderScheduler({ userId, history }: ReminderScheduler
     let mounted = true;
     (async () => {
       try {
-        const next = await aiClient.nextRemindTime({ userId, history });
-        if (mounted) setReminder(next);
+        const response = await aiClient.nextRemindTime(userId);
+        if (mounted && response.success) {
+          setReminder(response.data);
+        }
       } catch (error) {
         console.error('Reminder scheduling error:', error);
       } finally {

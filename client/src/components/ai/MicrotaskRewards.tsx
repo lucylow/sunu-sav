@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bitcoin, CheckCircle, Clock, Star, Zap } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient.js';
+import aiClient from '../../ai/mockAiClient';
 
 interface MicrotaskRewardsProps {
   userId: string;
@@ -52,9 +52,11 @@ export default function MicrotaskRewards({ userId }: MicrotaskRewardsProps) {
   const doTask = async (taskId: string) => {
     setLoading(true);
     try {
-      const res = await aiClient.rewardMicrotask({ userId, taskId });
-      setReward(res);
-      setCompletedTasks(prev => [...prev, taskId]);
+      const response = await aiClient.rewardMicrotask(userId);
+      if (response.success) {
+        setReward(response.data);
+        setCompletedTasks(prev => [...prev, taskId]);
+      }
     } catch (error) {
       console.error('Microtask error:', error);
     } finally {

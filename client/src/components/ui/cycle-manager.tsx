@@ -15,7 +15,7 @@ import {
 import { apiClient, GroupStatus, Payout, Contribution } from '@/lib/api-client';
 import { UserFriendlyError } from './user-friendly-error';
 import { SkeletonLoader } from './skeleton-loader';
-import { BrandButton } from './brand-button';
+import { Button } from './brand-button';
 import { webhookHandler } from '@/lib/webhook-handler';
 
 interface CycleManagerProps {
@@ -325,13 +325,13 @@ export const CycleManager: React.FC<CycleManagerProps> = ({
             </div>
           </div>
 
-          <BrandButton
+          <Button
             onClick={processCycleCompletion}
             disabled={isProcessing}
             className="w-full"
           >
             {isProcessing ? 'Processing...' : 'Complete Cycle & Select Winner'}
-          </BrandButton>
+          </Button>
         </div>
       )}
 

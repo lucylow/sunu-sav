@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Trophy, Users, Clock, Shield } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient.js';
+import aiClient from '../../ai/mockAiClient';
 
 interface Candidate {
   id: string;
@@ -33,8 +33,10 @@ export default function PayoutExplain({ groupId, candidates }: PayoutExplainProp
     let mounted = true;
     (async () => {
       try {
-        const payoutResult = await aiClient.evaluatePayout({ groupId, candidates });
-        if (mounted) setResult(payoutResult);
+        const response = await aiClient.evaluatePayout(groupId, 1);
+        if (mounted && response.success) {
+          setResult(response.data);
+        }
       } catch (error) {
         console.error('Payout evaluation error:', error);
       } finally {

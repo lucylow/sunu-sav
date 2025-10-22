@@ -1,12 +1,10 @@
-import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "path";
 import { defineConfig } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 
-
-const plugins = [react(), tailwindcss(), vitePluginManusRuntime()];
+const plugins = [react(), vitePluginManusRuntime()];
 
 export default defineConfig({
   plugins,
@@ -24,6 +22,27 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      external: [
+        'react-native',
+        'react-native-keychain',
+        'react-native-biometrics',
+        'react-native-flash-message',
+        'react-native-gesture-handler',
+        'react-native-localize',
+        'react-native-qrcode-svg',
+        'react-native-reanimated',
+        'react-native-safe-area-context',
+        'react-native-screens',
+        'react-native-sqlite-storage',
+        'react-native-vision-camera',
+        '@react-native-async-storage/async-storage',
+        '@react-native-community/netinfo',
+        '@react-navigation/native',
+        '@react-navigation/native-stack',
+        '@react-navigation/stack'
+      ]
+    }
   },
   server: {
     port: 8080,

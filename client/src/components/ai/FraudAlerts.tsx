@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Shield, CheckCircle } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient.js';
+import aiClient from '../../ai/mockAiClient';
 
 interface Transaction {
   txid?: string;
@@ -39,8 +39,10 @@ export default function FraudAlerts({ recentTxs = [] }: FraudAlertsProps) {
       
       setLoading(true);
       try {
-        const r = await aiClient.detectFraud({ batch: recentTxs });
-        if (mounted) setAlerts(r);
+        const response = await aiClient.detectFraud('user123');
+        if (mounted && response.success) {
+          setAlerts(response.data);
+        }
       } catch (error) {
         console.error('Fraud detection error:', error);
       } finally {

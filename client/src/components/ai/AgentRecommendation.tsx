@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, Phone, Star, Navigation } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient.js';
+import aiClient from '../../ai/mockAiClient';
 
 interface Location {
   lat: number;
@@ -35,8 +35,10 @@ export default function AgentRecommendation({ location, agents }: AgentRecommend
     let mounted = true;
     (async () => {
       try {
-        const rec = await aiClient.recommendAgent({ location, agents });
-        if (mounted) setRecommendation(rec);
+        const response = await aiClient.recommendAgent('user123', JSON.stringify({ location, agents }));
+        if (mounted && response.success) {
+          setRecommendation(response.data);
+        }
       } catch (error) {
         console.error('Agent recommendation error:', error);
       } finally {

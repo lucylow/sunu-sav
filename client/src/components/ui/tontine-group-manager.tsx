@@ -15,7 +15,7 @@ import {
 import { apiClient, TontineGroup, GroupMember, MultiSigWallet } from '@/lib/api-client';
 import { UserFriendlyError } from './user-friendly-error';
 import { SkeletonLoader } from './skeleton-loader';
-import { BrandButton } from './brand-button';
+import { Button } from './brand-button';
 
 interface TontineGroupManagerProps {
   groupId?: string;
@@ -335,13 +335,13 @@ export const TontineGroupManager: React.FC<TontineGroupManagerProps> = ({
           </div>
           
           <div className="flex space-x-3 mt-6">
-            <BrandButton
+            <Button
               onClick={handleCreateGroup}
               disabled={isLoading || !createForm.name.trim()}
               className="flex-1"
             >
               {isLoading ? 'Creating...' : 'Create Group'}
-            </BrandButton>
+            </Button>
             <button
               onClick={() => setShowCreateForm(false)}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -355,21 +355,21 @@ export const TontineGroupManager: React.FC<TontineGroupManagerProps> = ({
       {/* Action Buttons */}
       {!group && !showCreateForm && (
         <div className="flex space-x-4">
-          <BrandButton
+          <Button
             onClick={() => setShowCreateForm(true)}
             className="flex-1"
             icon={PlusIcon}
           >
             Create Tontine Group
-          </BrandButton>
-          <BrandButton
+          </Button>
+          <Button
             onClick={() => {/* Handle join group */}}
             variant="secondary"
             className="flex-1"
             icon={UserPlusIcon}
           >
             Join Existing Group
-          </BrandButton>
+          </Button>
         </div>
       )}
 

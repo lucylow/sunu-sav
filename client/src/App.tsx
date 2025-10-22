@@ -20,6 +20,16 @@ import AiDemoPage from "./pages/AiDemoPage";
 import { startSyncEngine } from "./lib/sync-engine";
 import { useEffect } from "react";
 
+// Wrapper component for AI Features route
+function AIFeaturesRoute({ params }: { params: any }) {
+  return <AIFeatures userId="demo-user" />;
+}
+
+// Wrapper component for AI Demo route  
+function AiDemoRoute({ params }: { params: any }) {
+  return <AiDemoPage />;
+}
+
 // Wrapper component for Payment route
 function PaymentRoute({ params }: { params: any }) {
   return <Payment groupId={params?.groupId} amount={params?.amount} />;
@@ -39,8 +49,8 @@ function Router() {
       <Route path="/brand-showcase" component={SunuSavBrandShowcase} />
       <Route path="/offline-demo" component={OfflineFirstDemo} />
       <Route path="/demo" component={DemoShowcase} />
-      <Route path="/ai-features" component={AIFeatures} />
-      <Route path="/ai-demo" component={AiDemoPage} />
+      <Route path="/ai-features" component={AIFeaturesRoute} />
+      <Route path="/ai-demo" component={AiDemoRoute} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

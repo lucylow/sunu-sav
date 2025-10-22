@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, DollarSign, Bitcoin } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient.js';
+import aiClient from '../../ai/mockAiClient';
 
 interface DataPoint {
   date: string;
@@ -24,8 +24,10 @@ export default function InflationDashboard() {
     let mounted = true;
     (async () => {
       try {
-        const data = await aiClient.forecastInflation({ horizonDays: 60 });
-        if (mounted) setForecastData(data);
+        const response = await aiClient.forecastInflation();
+        if (mounted && response.success) {
+          setForecastData(response.data);
+        }
       } catch (error) {
         console.error('Inflation forecast error:', error);
       } finally {

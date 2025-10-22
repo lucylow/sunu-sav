@@ -19,22 +19,22 @@ import { securityIntegration } from './security/integration';
 
 export interface DemoUser {
   id: string;
-  phoneNumber: string;
-  publicKey: string;
+  phone_number: string;
+  public_key: string;
   language: string;
-  createdAt: Date;
+  created_at: Date;
   profile: {
     name: string;
     age: number;
     occupation: string;
     market: string;
-    weeklyIncome: number;
-    businessType: string;
+    weekly_income: number;
+    business_type: string;
     location: string;
-    educationLevel: string;
-    tontineExperience: number;
-    preferredPayment: string;
-    deviceType: string;
+    education_level: string;
+    tontine_experience: number;
+    preferred_payment: string;
+    device_type: string;
   };
 }
 
@@ -429,6 +429,3 @@ export class DemoService {
 
 // Export singleton instance
 export const demoService = DemoService.getInstance();
-
-// Export types
-export type { DemoUser, DemoGroup, DemoContribution, DemoPayout, DemoNotification };

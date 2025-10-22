@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Shield, TrendingUp, AlertTriangle } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient.js';
+import aiClient from '../../ai/mockAiClient';
 
 interface CreditScoreCardProps {
   userId: string;
@@ -23,8 +23,10 @@ export default function CreditScoreCard({ userId, features }: CreditScoreCardPro
     let mounted = true;
     (async () => {
       try {
-        const res = await aiClient.predictCreditScore({ userId, features });
-        if (mounted) setScoreObj(res);
+        const response = await aiClient.predictCreditScore(userId);
+        if (mounted && response.success) {
+          setScoreObj(response.data);
+        }
       } catch (e) {
         console.error(e);
       } finally { 

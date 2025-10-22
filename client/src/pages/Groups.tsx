@@ -21,7 +21,7 @@ import { APP_TITLE } from "@/const";
 import { NetworkAware } from "@/components/ui/network-aware";
 import { ListSkeleton } from "@/components/ui/skeleton-loader";
 import { UserFriendlyError } from "@/components/ui/user-friendly-error";
-import { SearchInput } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/accessible-input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 

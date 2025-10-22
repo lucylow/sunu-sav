@@ -527,6 +527,3 @@ export class UXEnhancementService {
 
 // Export singleton instance
 export const uxEnhancementService = UXEnhancementService.getInstance();
-
-// Export types
-export type { UXPreferences, UXAnalytics, SmartSuggestion };

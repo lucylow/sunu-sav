@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '@/hooks/useLanguage';
 import { toast } from 'sonner';
+import { sunuSavAPI } from '@/lib/sunu-sav-api';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SubscriptionTier {
   id: string;
@@ -22,7 +24,6 @@ interface SubscriptionTier {
 }
 
 interface SubscriptionManagerProps {
-  userId: string;
   currentSubscription?: any;
   onSubscriptionChange?: (subscription: any) => void;
 }
@@ -76,35 +77,38 @@ const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
 ];
 
 export const SenegalSubscriptionManager: React.FC<SubscriptionManagerProps> = ({
-  userId,
   currentSubscription,
   onSubscriptionChange
 }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState(currentSubscription);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
 
   const handleCreateSubscription = async (tier: SubscriptionTier) => {
+    if (!user?.id) {
+      toast.error('Please sign in to create a subscription');
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch('/api/monetization/subscriptions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          user_id: userId, 
-          tier: tier.id,
-          payment_method: 'lightning'
-        })
+      const result = await sunuSavAPI.createSubscription({
+        user_id: user.id,
+        tier: tier.id as 'standard' | 'pro' | 'enterprise',
+        recurring_xof: tier.priceXof,
+        active: true,
+        started_at: new Date().toISOString(),
+        expires_at: tier.priceXof > 0 ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : undefined
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to create subscription');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create subscription');
       }
       
-      const result = await response.json();
-      setSubscription(result);
-      onSubscriptionChange?.(result);
+      setSubscription(result.data);
+      onSubscriptionChange?.(result.data);
       
       toast.success(`Subscription ${tier.name} created successfully!`);
       
@@ -121,12 +125,10 @@ export const SenegalSubscriptionManager: React.FC<SubscriptionManagerProps> = ({
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/monetization/subscriptions/${subscription.id}`, {
-        method: 'DELETE'
-      });
+      const result = await sunuSavAPI.updateSubscription(subscription.id, { active: false });
       
-      if (!response.ok) {
-        throw new Error('Failed to cancel subscription');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to cancel subscription');
       }
       
       setSubscription(null);

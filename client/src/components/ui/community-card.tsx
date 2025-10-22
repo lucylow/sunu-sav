@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { textilePatterns, brandColors } from '@/lib/design-system';
 import { Users, TrendingUp, Clock, CheckCircle, Zap } from 'lucide-react';
 import { Badge } from './badge';
-import { Button } from './brand-button';
+import { Button, ContributionButton, JoinGroupButton } from './brand-button';
 import { ProgressiveAvatar } from './progressive-image';
 
 interface CommunityCardProps {

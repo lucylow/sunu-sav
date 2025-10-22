@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '@/hooks/useLanguage';
 import { toast } from 'sonner';
+import { sunuSavAPI } from '@/lib/sunu-sav-api';
+import { useAuth } from '@/hooks/useAuth';
 
 interface WaveCashOutModalProps {
   isOpen: boolean;
@@ -32,6 +34,7 @@ export const WaveCashOutModal: React.FC<WaveCashOutModalProps> = ({
   onSuccess
 }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [phoneNumber, setPhoneNumber] = useState(winnerPhone);
   const [exchangeRate, setExchangeRate] = useState<ExchangeRate | null>(null);
   const [xofAmount, setXofAmount] = useState(0);
@@ -57,10 +60,13 @@ export const WaveCashOutModal: React.FC<WaveCashOutModalProps> = ({
 
   const fetchExchangeRate = async () => {
     try {
-      const response = await fetch('/api/monetization/rates/current');
-      if (response.ok) {
-        const rate = await response.json();
-        setExchangeRate(rate);
+      const result = await sunuSavAPI.getCurrentExchangeRate('BTC_XOF');
+      if (result.success && result.data) {
+        setExchangeRate({
+          btc_xof_rate: result.data,
+          source: 'supabase',
+          timestamp: new Date().toISOString()
+        });
       }
     } catch (error) {
       console.error('Failed to fetch exchange rate:', error);
@@ -95,6 +101,11 @@ export const WaveCashOutModal: React.FC<WaveCashOutModalProps> = ({
   };
 
   const handleCashOut = async () => {
+    if (!user?.id) {
+      toast.error('Please sign in to process cash-out');
+      return;
+    }
+
     if (!validateSenegalPhone(phoneNumber)) {
       toast.error('Please enter a valid Senegal phone number (+221XXXXXXXX)');
       return;
@@ -107,25 +118,21 @@ export const WaveCashOutModal: React.FC<WaveCashOutModalProps> = ({
 
     setProcessing(true);
     try {
-      const response = await fetch('/api/monetization/partners/settle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          partner: 'wave',
-          phone_number: phoneNumber,
-          amount_xof: xofAmount,
-          amount_sats: payoutAmount,
-          reference: `SunuSav_Payout_${Date.now()}`
-        })
+      const result = await sunuSavAPI.createWaveTransaction({
+        user_id: user.id,
+        phone_number: phoneNumber,
+        amount_xof: xofAmount,
+        amount_sats: payoutAmount,
+        status: 'pending',
+        reference: `SunuSav_Payout_${Date.now()}`
       });
 
-      if (!response.ok) {
-        throw new Error('Cash-out request failed');
+      if (!result.success) {
+        throw new Error(result.error || 'Cash-out request failed');
       }
 
-      const result = await response.json();
-      setResult(result);
-      onSuccess?.(result);
+      setResult(result.data);
+      onSuccess?.(result.data);
       
       toast.success(`Successfully cashed out ${xofAmount.toLocaleString()} XOF to Wave!`);
       
