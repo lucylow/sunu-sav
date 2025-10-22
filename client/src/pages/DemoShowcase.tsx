@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { demoService, DemoUser, DemoGroup } from '@/lib/demo-service';
 import { securityIntegration } from '@/lib/security/integration';
+import UXTesting from '@/components/UXTesting';
 import { toast } from 'sonner';
 
 export default function DemoShowcase() {
@@ -136,11 +137,12 @@ export default function DemoShowcase() {
 
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Market Vendors</TabsTrigger>
             <TabsTrigger value="groups">Tontine Groups</TabsTrigger>
             <TabsTrigger value="demo">Live Demo</TabsTrigger>
+            <TabsTrigger value="testing">UX Testing</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -504,6 +506,11 @@ export default function DemoShowcase() {
                 </Card>
               </div>
             )}
+          </TabsContent>
+
+          {/* UX Testing Tab */}
+          <TabsContent value="testing" className="space-y-6">
+            <UXTesting />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,4 +1,3 @@
--- backend/monetization/init.sql
 -- Initialize SunuSàv Monetization Database
 
 -- Create database if not exists

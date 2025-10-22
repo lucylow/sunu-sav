@@ -25,9 +25,6 @@ protobuf==4.25.1
 # Bitcoin utilities
 bitcoinlib==0.12.0
 
-# Decimal precision
-decimal==1.70
-
 # Environment and configuration
 python-dotenv==1.0.0
 
@@ -42,4 +39,4 @@ flake8==6.1.0
 mypy==1.7.1
 
 # Optional: Nostr integration
-nostr==0.0.1
+nostr-sdk==0.0.1

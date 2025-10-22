@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bitcoin, CheckCircle, Clock, Star, Zap } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient';
+import aiClient from '../../ai/mockAiClient.js';
 
 interface MicrotaskRewardsProps {
   userId: string;

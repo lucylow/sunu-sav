@@ -3,15 +3,14 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite --host",
     "android": "react-native run-android",
     "ios": "react-native run-ios",
-    "start": "react-native start",
     "test": "jest",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "dev": "NODE_ENV=development tsx watch server/_core/index.ts",
-    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "build:dev": "vite build --mode development",
-    "start-server": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
@@ -28,7 +27,10 @@
     "seed:users": "node backend/scripts/seed_mock_users.js",
     "seed:activity": "node backend/scripts/generate_mock_activity.js",
     "seed:all": "npm run seed:users && npm run seed:activity",
-    "db:seed": "psql $DATABASE_URL -f migrations/seed_mock_users.sql"
+    "db:seed": "psql $DATABASE_URL -f migrations/seed_mock_users.sql",
+    "server:dev": "NODE_ENV=development tsx watch server/_core/index.ts",
+    "server:build": "esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "server:start": "NODE_ENV=production node dist/index.js"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.9.0",

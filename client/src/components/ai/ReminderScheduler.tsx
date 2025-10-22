@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Bell, Smartphone, MessageSquare } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient';
+import aiClient from '../../ai/mockAiClient.js';
 
 interface ReminderSchedulerProps {
   userId: string;

@@ -143,6 +143,16 @@ declare module '@radix-ui/react-dropdown-menu' {
   export const Portal: any;
   export const Content: any;
   export const Item: any;
+  export const Group: any;
+  export const CheckboxItem: any;
+  export const ItemIndicator: any;
+  export const RadioGroup: any;
+  export const RadioItem: any;
+  export const Label: any;
+  export const Separator: any;
+  export const Sub: any;
+  export const SubTrigger: any;
+  export const SubContent: any;
 }
 
 declare module '@radix-ui/react-hover-card' {
@@ -163,6 +173,16 @@ declare module '@radix-ui/react-menubar' {
   export const Portal: any;
   export const Content: any;
   export const Item: any;
+  export const Group: any;
+  export const RadioGroup: any;
+  export const CheckboxItem: any;
+  export const ItemIndicator: any;
+  export const RadioItem: any;
+  export const Label: any;
+  export const Separator: any;
+  export const Sub: any;
+  export const SubTrigger: any;
+  export const SubContent: any;
 }
 
 declare module '@radix-ui/react-navigation-menu' {
@@ -172,6 +192,8 @@ declare module '@radix-ui/react-navigation-menu' {
   export const Trigger: any;
   export const Content: any;
   export const Link: any;
+  export const Viewport: any;
+  export const Indicator: any;
 }
 
 declare module '@radix-ui/react-popover' {
@@ -179,10 +201,12 @@ declare module '@radix-ui/react-popover' {
   export const Trigger: any;
   export const Portal: any;
   export const Content: any;
+  export const Anchor: any;
 }
 
 declare module '@radix-ui/react-progress' {
   export const Root: any;
+  export const Indicator: any;
 }
 
 declare module '@radix-ui/react-radio-group' {
@@ -196,6 +220,9 @@ declare module '@radix-ui/react-scroll-area' {
   export const Viewport: any;
   export const Scrollbar: any;
   export const Thumb: any;
+  export const Corner: any;
+  export const ScrollAreaScrollbar: any;
+  export const ScrollAreaThumb: any;
 }
 
 declare module '@radix-ui/react-select' {
@@ -204,6 +231,16 @@ declare module '@radix-ui/react-select' {
   export const Portal: any;
   export const Content: any;
   export const Item: any;
+  export const Group: any;
+  export const Value: any;
+  export const Icon: any;
+  export const ScrollUpButton: any;
+  export const ScrollDownButton: any;
+  export const Viewport: any;
+  export const Label: any;
+  export const ItemIndicator: any;
+  export const ItemText: any;
+  export const Separator: any;
 }
 
 declare module '@radix-ui/react-separator' {
@@ -243,11 +280,14 @@ declare module '@radix-ui/react-tooltip' {
   export const Trigger: any;
   export const Portal: any;
   export const Content: any;
+  export const Provider: any;
+  export const Arrow: any;
 }
 
 declare module '@radix-ui/react-icons' {
   export const ChevronDownIcon: any;
   export const CheckIcon: any;
+  export const ChevronUpIcon: any;
 }
 
 declare module 'react-day-picker' {
@@ -429,6 +469,9 @@ declare module '@heroicons/react/24/outline' {
   export const CloudCloudBoltIcon: any;
   export const CloudCloudSunIcon: any;
   export const CloudCloudMoonIcon: any;
+  export const TrophyIcon: any;
+  export const LightningBoltIcon: any;
+  export const UserPlusIcon: any;
 }
 
 declare module 'date-fns' {
@@ -513,4 +556,50 @@ declare module 'date-fns/locale' {
   export const sms: any;
   export const sme: any;
   export const smi: any;
+  export const zhCN: any;
+}
+
+declare module 'tiny-secp256k1' {
+  export function sign(message: Buffer, privateKey: Buffer): Buffer;
+  export function verify(message: Buffer, signature: Buffer, publicKey: Buffer): boolean;
+  export function publicKeyCreate(privateKey: Buffer): Buffer;
+  export function publicKeyConvert(publicKey: Buffer): Buffer;
+}
+
+declare module 'debug' {
+  export default function debug(namespace: string): any;
+}
+
+declare module '../database' {
+  export const db: any;
+}
+
+declare module '../jobs/aiJobManager' {
+  export const aiJobManager: any;
+}
+
+declare module '../utils/audit' {
+  export const auditLog: any;
+}
+
+declare module '../storage/db.js' {
+  export const db: any;
+}
+
+declare module '../../ai/mockAiClient.js' {
+  export class MockAiClient {
+    constructor();
+    getCreditScore(userId: string): Promise<any>;
+    getFraudAlerts(userId: string): Promise<any>;
+    getAgentRecommendations(userId: string): Promise<any>;
+    getInflationData(): Promise<any>;
+    getMicrotaskRewards(userId: string): Promise<any>;
+    getPayoutExplanation(groupId: string, cycle: number): Promise<any>;
+    getPredictiveData(userId: string): Promise<any>;
+    getReminderSchedule(userId: string): Promise<any>;
+    getRoutingOptimization(groupId: string): Promise<any>;
+    chat(message: string, context?: any): Promise<any>;
+  }
+  export const mockAiClient: MockAiClient;
+  export default MockAiClient;
 }

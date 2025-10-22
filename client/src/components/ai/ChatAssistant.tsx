@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Mic, MicOff, Send, Volume2, VolumeX } from 'lucide-react';
-import aiClient from '../../ai/mockAiClient';
+import aiClient from '../../ai/mockAiClient.js';
 
 interface ChatAssistantProps {
   userId: string;

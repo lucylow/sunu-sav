@@ -1,4 +1,3 @@
-// backend/services/SenegalTontineService.js
 const TontineService = require('./TontineService');
 const WaveMobileMoneyService = require('./WaveMobileMoneyService');
 const USSDService = require('./USSDService');
