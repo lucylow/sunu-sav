@@ -14,7 +14,275 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contributions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          cycle: number
+          group_id: string
+          id: string
+          payment_hash: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          cycle: number
+          group_id: string
+          id?: string
+          payment_hash?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          cycle?: number
+          group_id?: string
+          id?: string
+          payment_hash?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contributions_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "tontine_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contributions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lightning_invoices: {
+        Row: {
+          amount: number
+          created_at: string | null
+          expires_at: string
+          group_id: string | null
+          id: string
+          payment_hash: string
+          payment_request: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          expires_at: string
+          group_id?: string | null
+          id?: string
+          payment_hash: string
+          payment_request: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          expires_at?: string
+          group_id?: string | null
+          id?: string
+          payment_hash?: string
+          payment_request?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lightning_invoices_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "tontine_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lightning_invoices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payouts: {
+        Row: {
+          amount: number
+          created_at: string | null
+          cycle: number
+          group_id: string
+          id: string
+          recipient_id: string
+          status: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          cycle: number
+          group_id: string
+          id?: string
+          recipient_id: string
+          status?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          cycle?: number
+          group_id?: string
+          id?: string
+          recipient_id?: string
+          status?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "tontine_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payouts_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          last_signed_in: string | null
+          login_method: string | null
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id: string
+          last_signed_in?: string | null
+          login_method?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          last_signed_in?: string | null
+          login_method?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      tontine_groups: {
+        Row: {
+          contribution_amount: number
+          created_at: string | null
+          created_by: string | null
+          current_cycle: number | null
+          description: string | null
+          frequency: string
+          id: string
+          max_members: number
+          multi_sig_address: string | null
+          name: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          contribution_amount: number
+          created_at?: string | null
+          created_by?: string | null
+          current_cycle?: number | null
+          description?: string | null
+          frequency: string
+          id?: string
+          max_members: number
+          multi_sig_address?: string | null
+          name: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          contribution_amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          current_cycle?: number | null
+          description?: string | null
+          frequency?: string
+          id?: string
+          max_members?: number
+          multi_sig_address?: string | null
+          name?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tontine_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tontine_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tontine_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "tontine_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tontine_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
