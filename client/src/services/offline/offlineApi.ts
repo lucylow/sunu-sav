@@ -3,7 +3,7 @@
 import { offlineStorage } from './storage';
 import { networkMonitor } from './networkMonitor';
 import { syncEngine } from './syncEngine';
-import { trpc } from '../../lib/trpc';
+import { trpcClient } from '../../lib/trpc';
 
 /**
  * Wrapper for API calls that handles offline queueing
@@ -17,7 +17,7 @@ export class OfflineApi {
     // If online and good connection, make direct API call
     if (networkMonitor.getQuality() === 'good' || networkMonitor.getQuality() === 'excellent') {
       try {
-        return await trpc.tontine.contribute.mutate({ 
+        return await trpcClientClient.tontine.contribute.mutate({ 
           groupId, 
           amount, 
           memo 
@@ -50,7 +50,7 @@ export class OfflineApi {
   async joinGroup(groupId: string) {
     if (networkMonitor.isOnline()) {
       try {
-        return await trpc.tontine.join.mutate({ groupId });
+        return await trpcClient.tontine.join.mutate({ groupId });
       } catch (error) {
         console.warn('[OfflineApi] Join group failed, queueing offline');
       }
@@ -76,7 +76,7 @@ export class OfflineApi {
   async requestPayout(groupId: string, cycle: number, winnerId: string) {
     if (networkMonitor.isOnline()) {
       try {
-        return await trpc.payout.process.mutate({
+        return await trpcClient.payout.process.mutate({
           groupId,
           cycle,
           winnerId,
@@ -106,7 +106,7 @@ export class OfflineApi {
   async updateProfile(name: string, phoneNumber?: string) {
     if (networkMonitor.isOnline()) {
       try {
-        return await trpc.auth.me.mutate({
+        return await trpcClient.auth.me.mutate({
           name,
           phoneNumber,
         });
@@ -152,7 +152,7 @@ export class OfflineApi {
       throw new Error('No cached data and network offline');
     }
 
-    const groups = await trpc.tontine.list.query();
+    const groups = await trpcClient.tontine.list.query();
     await offlineStorage.cacheData('groups', groups);
     return { data: groups, fromCache: false };
   }
@@ -176,7 +176,7 @@ export class OfflineApi {
       throw new Error('No cached data and network offline');
     }
 
-    const myGroups = await trpc.tontine.myGroups.query();
+    const myGroups = await trpcClient.tontine.myGroups.query();
     await offlineStorage.cacheData('myGroups', myGroups);
     return { data: myGroups, fromCache: false };
   }
@@ -200,7 +200,7 @@ export class OfflineApi {
       throw new Error('No cached data and network offline');
     }
 
-    const group = await trpc.tontine.getGroup.query({ id: groupId });
+    const group = await trpcClient.tontine.getGroup.query({ id: groupId });
     await offlineStorage.cacheData(`group_${groupId}`, group);
     return { data: group, fromCache: false };
   }
@@ -224,7 +224,7 @@ export class OfflineApi {
       throw new Error('No cached data and network offline');
     }
 
-    const contributions = await trpc.tontine.getContributions.query({ groupId });
+    const contributions = await trpcClient.tontine.getContributions.query({ groupId });
     await offlineStorage.cacheData(`contributions_${groupId}`, contributions);
     return { data: contributions, fromCache: false };
   }

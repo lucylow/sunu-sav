@@ -3,7 +3,7 @@
 import { offlineStorage } from './storage';
 import { networkMonitor } from './networkMonitor';
 import { SyncResult, OfflineAction, SyncStatus } from './types';
-import { trpc } from '../../lib/trpc';
+import { trpcClientClient } from '../../lib/trpcClient';
 
 export class SyncEngine {
   private isSyncing = false;
@@ -120,7 +120,7 @@ export class SyncEngine {
     
     try {
       // Call your tRPC endpoint
-      const result = await trpc.tontine.contribute.mutate({
+      const result = await trpcClient.tontine.contribute.mutate({
         groupId,
         amount,
         memo,
@@ -143,7 +143,7 @@ export class SyncEngine {
     const { groupId } = action.data;
     
     try {
-      const result = await trpc.tontine.join.mutate({
+      const result = await trpcClient.tontine.join.mutate({
         groupId,
       });
 
@@ -162,7 +162,7 @@ export class SyncEngine {
     const { groupId, cycle } = action.data;
     
     try {
-      const result = await trpc.payout.process.mutate({
+      const result = await trpcClient.payout.process.mutate({
         groupId,
         cycle,
         winnerId: action.data.winnerId,
@@ -183,7 +183,7 @@ export class SyncEngine {
     const { name, phoneNumber } = action.data;
     
     try {
-      const result = await trpc.auth.me.mutate({
+      const result = await trpcClient.auth.me.mutate({
         name,
         phoneNumber,
       });
@@ -202,15 +202,15 @@ export class SyncEngine {
       const lastSync = metadata?.lastSync || 0;
 
       // Fetch groups
-      const groups = await trpc.tontine.list.query();
+      const groups = await trpcClient.tontine.list.query();
       await offlineStorage.cacheData('groups', groups);
 
       // Fetch user's groups
-      const myGroups = await trpc.tontine.myGroups.query();
+      const myGroups = await trpcClient.tontine.myGroups.query();
       await offlineStorage.cacheData('myGroups', myGroups);
 
       // Fetch contributions
-      const contributions = await trpc.tontine.getContributions.query({
+      const contributions = await trpcClient.tontine.getContributions.query({
         groupId: '', // This would need to be implemented properly
       });
       await offlineStorage.cacheData('contributions', contributions);

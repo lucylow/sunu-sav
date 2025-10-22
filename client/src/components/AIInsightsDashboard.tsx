@@ -297,7 +297,7 @@ export default function AIInsightsDashboard({ userId }: SavingsProjectionProps) 
                     {t('aiRecommendations')}
                   </p>
                   <ul className="text-sm text-blue-800 space-y-1">
-                    {projectSavingsMutation.data.recommendations.map((rec, index) => (
+                    {projectSavingsMutation.data.recommendations.map((rec: string, index: number) => (
                       <li key={index} className="flex items-start gap-2">
                         <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
                         {rec}
@@ -332,7 +332,7 @@ export default function AIInsightsDashboard({ userId }: SavingsProjectionProps) 
                     <p className="text-sm text-gray-600">{t('last30Days')}</p>
                     <p className="text-2xl font-bold text-red-600">
                       {formatPercentage(
-                        inflationHistoryQuery.data.data.reduce((sum, d) => sum + d.cfa_inflation_rate, 0) / 
+                        inflationHistoryQuery.data.data.reduce((sum: number, d: any) => sum + d.cfa_inflation_rate, 0) / 
                         inflationHistoryQuery.data.data.length * 100
                       )}
                     </p>

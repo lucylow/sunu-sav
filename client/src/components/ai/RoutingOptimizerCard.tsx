@@ -25,8 +25,10 @@ export default function RoutingOptimizerCard({ groupId }: RoutingOptimizerCardPr
     let mounted = true;
     (async () => {
       try {
-        const rec = await aiClient.suggestRouting({ groupId });
-        if (mounted) setRecommendation(rec);
+        const response = await aiClient.suggestRouting(groupId);
+        if (mounted && response.success) {
+          setRecommendation(response.data);
+        }
       } catch (error) {
         console.error('Routing optimization error:', error);
       } finally {

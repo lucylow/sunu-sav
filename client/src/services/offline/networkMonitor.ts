@@ -120,7 +120,8 @@ export function useNetworkQuality() {
   const [quality, setQuality] = useState<NetworkQuality>(networkMonitor.getQuality());
 
   useEffect(() => {
-    return networkMonitor.subscribe(setQuality);
+    const unsubscribe = networkMonitor.subscribe(setQuality);
+    return () => unsubscribe();
   }, []);
 
   return {

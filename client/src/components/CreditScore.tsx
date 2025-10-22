@@ -28,6 +28,7 @@ export default function CreditScore({ userId, className = '' }: CreditScoreProps
   const creditScoreQuery = trpc.ai.credit.getScore.useQuery(
     { userId },
     {
+      queryKey: ['ai.credit.getScore', { userId }],
       refetchInterval: 300000, // Refetch every 5 minutes
       enabled: !!userId
     }
@@ -194,7 +195,7 @@ export default function CreditScore({ userId, className = '' }: CreditScoreProps
             {t('aiRecommendations')}
           </h4>
           <div className="space-y-2">
-            {scoreData.recommendations.map((recommendation, index) => (
+            {scoreData.recommendations.map((recommendation: string, index: number) => (
               <div key={index} className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg">
                 <CheckCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
                 <p className="text-sm text-blue-900">{recommendation}</p>
