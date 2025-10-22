@@ -1,214 +1,335 @@
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import * as db from "./db";
-import { randomBytes } from "crypto";
+import { TRPCError } from "@trpc/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+// Create a Supabase admin client for server-side operations
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export const appRouter = router({
   system: systemRouter,
 
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+    me: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) return null;
+      
+      // Get profile from Supabase
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .eq('id', ctx.user.id)
+        .single();
+      
+      return profile || ctx.user;
+    }),
+
+    logout: publicProcedure.mutation(async () => {
+      // This is handled on the client side with Supabase
+      return { success: true };
     }),
   }),
 
   tontine: router({
-    // Get all tontine groups
     list: publicProcedure.query(async () => {
-      return await db.getAllTontineGroups();
+      const { data: groups, error } = await supabaseAdmin
+        .from('tontine_groups')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return groups || [];
     }),
 
-    // Get user's tontine groups
-    myGroups: protectedProcedure.query(async ({ ctx }) => {
-      return await db.getUserTontineGroups(ctx.user.id);
+    myGroups: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+
+      const { data: memberships, error } = await supabaseAdmin
+        .from('tontine_members')
+        .select('group_id')
+        .eq('user_id', ctx.user.id)
+        .eq('status', 'active');
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      if (!memberships || memberships.length === 0) return [];
+
+      const groupIds = memberships.map(m => m.group_id);
+      const { data: groups, error: groupsError } = await supabaseAdmin
+        .from('tontine_groups')
+        .select('*')
+        .in('id', groupIds)
+        .order('created_at', { ascending: false });
+
+      if (groupsError) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: groupsError.message });
+      return groups || [];
     }),
 
-    // Get specific group details
     getGroup: publicProcedure
       .input(z.object({ id: z.string() }))
       .query(async ({ input }) => {
-        const group = await db.getTontineGroup(input.id);
-        if (!group) return null;
+        const { data: group, error } = await supabaseAdmin
+          .from('tontine_groups')
+          .select('*')
+          .eq('id', input.id)
+          .single();
 
-        const members = await db.getGroupMembers(input.id);
-        const contributions = await db.getGroupContributions(input.id);
-        const payouts = await db.getGroupPayouts(input.id);
+        if (error || !group) throw new TRPCError({ code: 'NOT_FOUND', message: 'Group not found' });
+
+        const { data: members } = await supabaseAdmin
+          .from('tontine_members')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              name,
+              email
+            )
+          `)
+          .eq('group_id', input.id)
+          .eq('status', 'active');
+
+        const { data: contributions } = await supabaseAdmin
+          .from('contributions')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              name
+            )
+          `)
+          .eq('group_id', input.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        const { data: payouts } = await supabaseAdmin
+          .from('payouts')
+          .select(`
+            *,
+            profiles:recipient_id (
+              id,
+              name
+            )
+          `)
+          .eq('group_id', input.id)
+          .order('created_at', { ascending: false });
 
         return {
-          group,
-          members,
-          contributions,
-          payouts,
+          ...group,
+          members: members || [],
+          contributions: contributions || [],
+          payouts: payouts || [],
         };
       }),
 
-    // Create new tontine group
-    create: protectedProcedure
-      .input(z.object({
-        name: z.string().min(1).max(255),
-        description: z.string().optional(),
-        contributionAmount: z.number().positive(),
-        frequency: z.enum(["weekly", "biweekly", "monthly"]),
-        maxMembers: z.number().min(2).max(50),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        const groupId = randomBytes(16).toString("hex");
-        const memberId = randomBytes(16).toString("hex");
+    create: publicProcedure
+      .input(
+        z.object({
+          name: z.string().min(1),
+          description: z.string().optional(),
+          contributionAmount: z.number().positive(),
+          frequency: z.enum(['weekly', 'monthly', 'quarterly']),
+          maxMembers: z.number().int().positive(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
 
-        // Calculate next payout date based on frequency
-        const now = new Date();
-        const nextPayoutDate = new Date(now);
-        switch (input.frequency) {
-          case "weekly":
-            nextPayoutDate.setDate(now.getDate() + 7);
-            break;
-          case "biweekly":
-            nextPayoutDate.setDate(now.getDate() + 14);
-            break;
-          case "monthly":
-            nextPayoutDate.setMonth(now.getMonth() + 1);
-            break;
-        }
+        const { data: group, error } = await supabaseAdmin
+          .from('tontine_groups')
+          .insert({
+            name: input.name,
+            description: input.description,
+            contribution_amount: input.contributionAmount,
+            frequency: input.frequency,
+            max_members: input.maxMembers,
+            created_by: ctx.user.id,
+            multi_sig_address: `lnbc${Math.random().toString(36).substring(7)}`,
+          })
+          .select()
+          .single();
 
-        const group = await db.createTontineGroup({
-          id: groupId,
-          name: input.name,
-          description: input.description,
-          creatorId: ctx.user.id,
-          contributionAmount: input.contributionAmount,
-          frequency: input.frequency,
-          maxMembers: input.maxMembers,
-          currentMembers: 1,
-          status: "active",
-          currentCycle: 1,
-          nextPayoutDate,
-        });
+        if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-        // Add creator as first member
-        await db.addTontineMember({
-          id: memberId,
-          groupId,
-          userId: ctx.user.id,
-          isActive: true,
-        });
+        // Auto-join the creator
+        await supabaseAdmin
+          .from('tontine_members')
+          .insert({
+            group_id: group.id,
+            user_id: ctx.user.id,
+          });
 
         return group;
       }),
 
-    // Join a tontine group
-    join: protectedProcedure
+    join: publicProcedure
       .input(z.object({ groupId: z.string() }))
-      .mutation(async ({ ctx, input }) => {
-        const group = await db.getTontineGroup(input.groupId);
-        if (!group) {
-          throw new Error("Group not found");
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+
+        const { data: group } = await supabaseAdmin
+          .from('tontine_groups')
+          .select('*, tontine_members(count)')
+          .eq('id', input.groupId)
+          .single();
+
+        if (!group) throw new TRPCError({ code: 'NOT_FOUND', message: 'Group not found' });
+
+        const memberCount = group.tontine_members?.[0]?.count || 0;
+        if (memberCount >= group.max_members) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Group is full' });
         }
 
-        if (group.currentMembers >= group.maxMembers) {
-          throw new Error("Group is full");
+        const { error } = await supabaseAdmin
+          .from('tontine_members')
+          .insert({
+            group_id: input.groupId,
+            user_id: ctx.user.id,
+          });
+
+        if (error) {
+          if (error.code === '23505') {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Already a member' });
+          }
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
         }
 
-        const memberId = randomBytes(16).toString("hex");
-        const member = await db.addTontineMember({
-          id: memberId,
-          groupId: input.groupId,
-          userId: ctx.user.id,
-          isActive: true,
-        });
-
-        return member;
+        return { success: true };
       }),
 
-    // Create contribution (mock Lightning payment)
-    contribute: protectedProcedure
-      .input(z.object({
-        groupId: z.string(),
-        amount: z.number().positive(),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        const group = await db.getTontineGroup(input.groupId);
-        if (!group) {
-          throw new Error("Group not found");
-        }
+    contribute: publicProcedure
+      .input(
+        z.object({
+          groupId: z.string(),
+          amount: z.number().positive(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
 
-        const contributionId = randomBytes(16).toString("hex");
-        const mockTxHash = randomBytes(32).toString("hex");
+        const { data: group } = await supabaseAdmin
+          .from('tontine_groups')
+          .select('*')
+          .eq('id', input.groupId)
+          .single();
 
-        const contribution = await db.createContribution({
-          id: contributionId,
-          groupId: input.groupId,
-          userId: ctx.user.id,
-          amount: input.amount,
-          cycle: group.currentCycle,
-          txHash: mockTxHash,
-          status: "confirmed",
-          confirmedAt: new Date(),
-        });
+        if (!group) throw new TRPCError({ code: 'NOT_FOUND', message: 'Group not found' });
 
-        return contribution;
+        const { error } = await supabaseAdmin
+          .from('contributions')
+          .insert({
+            group_id: input.groupId,
+            user_id: ctx.user.id,
+            amount: input.amount,
+            cycle: group.current_cycle,
+            payment_hash: `hash_${Date.now()}`,
+            status: 'completed',
+          });
+
+        if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+        return { success: true };
       }),
 
-    // Get group members
     getMembers: publicProcedure
       .input(z.object({ groupId: z.string() }))
       .query(async ({ input }) => {
-        return await db.getGroupMembers(input.groupId);
+        const { data: members, error } = await supabaseAdmin
+          .from('tontine_members')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              name,
+              email
+            )
+          `)
+          .eq('group_id', input.groupId)
+          .eq('status', 'active');
+
+        if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        return members || [];
       }),
 
-    // Get group contributions
     getContributions: publicProcedure
-      .input(z.object({ 
-        groupId: z.string(),
-        cycle: z.number().optional(),
-      }))
+      .input(
+        z.object({
+          groupId: z.string(),
+          cycle: z.number().optional(),
+        })
+      )
       .query(async ({ input }) => {
-        return await db.getGroupContributions(input.groupId, input.cycle);
+        let query = supabaseAdmin
+          .from('contributions')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              name
+            )
+          `)
+          .eq('group_id', input.groupId);
+
+        if (input.cycle) {
+          query = query.eq('cycle', input.cycle);
+        }
+
+        const { data: contributions, error } = await query.order('created_at', { ascending: false });
+
+        if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+        return contributions || [];
       }),
   }),
 
   wallet: router({
-    // Generate mock Lightning invoice
-    createInvoice: protectedProcedure
-      .input(z.object({
-        amount: z.number().positive(),
-        groupId: z.string().optional(),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        const invoiceId = randomBytes(16).toString("hex");
-        const paymentHash = randomBytes(32).toString("hex");
-        const mockPaymentRequest = `lnbc${input.amount}n1p${randomBytes(32).toString("hex")}`;
-        
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 1);
+    createInvoice: publicProcedure
+      .input(
+        z.object({
+          amount: z.number().positive(),
+          groupId: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
 
-        const invoice = await db.createLightningInvoice({
-          id: invoiceId,
-          userId: ctx.user.id,
-          groupId: input.groupId,
-          paymentRequest: mockPaymentRequest,
-          paymentHash,
-          amount: input.amount,
-          status: "pending",
-          expiresAt,
-        });
+        const paymentHash = `hash_${Date.now()}_${Math.random().toString(36)}`;
+        const paymentRequest = `lnbc${input.amount * 100000000}n${paymentHash}`;
+        const expiresAt = new Date(Date.now() + 3600000); // 1 hour
 
+        const { data: invoice, error } = await supabaseAdmin
+          .from('lightning_invoices')
+          .insert({
+            user_id: ctx.user.id,
+            payment_hash: paymentHash,
+            payment_request: paymentRequest,
+            amount: input.amount,
+            group_id: input.groupId,
+            expires_at: expiresAt.toISOString(),
+          })
+          .select()
+          .single();
+
+        if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
         return invoice;
       }),
 
-    // Get user invoices
-    getInvoices: protectedProcedure.query(async ({ ctx }) => {
-      return await db.getUserInvoices(ctx.user.id);
+    getInvoices: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+
+      const { data: invoices, error } = await supabaseAdmin
+        .from('lightning_invoices')
+        .select('*')
+        .eq('user_id', ctx.user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return invoices || [];
     }),
   }),
 });
 
 export type AppRouter = typeof appRouter;
-

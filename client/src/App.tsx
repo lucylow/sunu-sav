@@ -8,11 +8,13 @@ import Home from "./pages/Home";
 import Groups from "./pages/Groups";
 import CreateGroup from "./pages/CreateGroup";
 import GroupDetail from "./pages/GroupDetail";
+import Auth from "./pages/Auth";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path="/auth" component={Auth} />
       <Route path="/groups" component={Groups} />
       <Route path="/groups/create" component={CreateGroup} />
       <Route path="/groups/:id" component={GroupDetail} />

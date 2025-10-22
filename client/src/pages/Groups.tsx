@@ -1,17 +1,32 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { Users, Calendar, Coins, ArrowRight, Plus, Bitcoin } from "lucide-react";
-import { APP_TITLE, getLoginUrl } from "@/const";
+import { APP_TITLE } from "@/const";
 
 export default function Groups() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { data: groups, isLoading } = trpc.tontine.list.useQuery();
 
-  if (!isAuthenticated) {
+  if (authLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
+        <div className="container mx-auto px-4 py-12 max-w-6xl">
+          <Card className="animate-pulse">
+            <CardHeader>
+              <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            </CardHeader>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-white">
         <Card className="max-w-md">
@@ -22,11 +37,11 @@ export default function Groups() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <a href={getLoginUrl()}>
+            <Link href="/auth">
               <Button className="w-full bg-orange-600 hover:bg-orange-700">
                 Sign In
               </Button>
-            </a>
+            </Link>
           </CardContent>
         </Card>
       </div>
@@ -83,7 +98,7 @@ export default function Groups() {
           </div>
         ) : groups && groups.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {groups.map((group) => (
+            {groups.map((group: any) => (
               <Card key={group.id} className="hover:shadow-lg transition-shadow border-orange-200">
                 <CardHeader>
                   <div className="flex items-start justify-between mb-2">

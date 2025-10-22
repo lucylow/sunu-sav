@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,15 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { Link, useRoute } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Users, Calendar, Coins, ArrowLeft, Bitcoin, 
   CheckCircle, Clock, TrendingUp, Zap 
 } from "lucide-react";
-import { APP_TITLE, getLoginUrl } from "@/const";
+import { APP_TITLE } from "@/const";
 import { toast } from "sonner";
 
 export default function GroupDetail() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [, params] = useRoute("/groups/:id");
   const groupId = params?.id || "";
   
@@ -66,29 +66,7 @@ export default function GroupDetail() {
     });
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-white">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle>Sign In Required</CardTitle>
-            <CardDescription>
-              Please sign in to view group details.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <a href={getLoginUrl()}>
-              <Button className="w-full bg-orange-600 hover:bg-orange-700">
-                Sign In
-              </Button>
-            </a>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
         <div className="container mx-auto px-4 py-12">
@@ -99,6 +77,28 @@ export default function GroupDetail() {
             </CardHeader>
           </Card>
         </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-white">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Sign In Required</CardTitle>
+            <CardDescription>
+              Please sign in to view group details.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/auth">
+              <Button className="w-full bg-orange-600 hover:bg-orange-700">
+                Sign In
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -126,10 +126,10 @@ export default function GroupDetail() {
   }
 
   const { group, members, contributions, payouts } = data;
-  const isMember = members.some(m => m.userId === user?.id);
+  const isMember = members.some((m: any) => m.userId === user?.id);
   const totalContributed = contributions
-    .filter(c => c.status === "confirmed")
-    .reduce((sum, c) => sum + c.amount, 0);
+    .filter((c: any) => c.status === "confirmed")
+    .reduce((sum: number, c: any) => sum + c.amount, 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
@@ -260,7 +260,7 @@ export default function GroupDetail() {
               <CardContent>
                 {contributions.length > 0 ? (
                   <div className="space-y-3">
-                    {contributions.slice(0, 5).map((contribution) => (
+                    {contributions.slice(0, 5).map((contribution: any) => (
                       <div 
                         key={contribution.id}
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
@@ -377,7 +377,7 @@ export default function GroupDetail() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {members.map((member, index) => (
+                  {members.map((member: any, index: number) => (
                     <div 
                       key={member.id}
                       className="flex items-center justify-between p-2 bg-gray-50 rounded"

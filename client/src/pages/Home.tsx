@@ -1,12 +1,12 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
+import { APP_LOGO, APP_TITLE } from "@/const";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { Users, Shield, Zap, TrendingUp, ArrowRight, Bitcoin } from "lucide-react";
 
 export default function Home() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, signOut } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white">
@@ -20,21 +20,18 @@ export default function Home() {
           <nav className="flex items-center gap-4">
             {isAuthenticated ? (
               <>
-                <Link href="/dashboard">
-                  <Button variant="ghost">Dashboard</Button>
-                </Link>
                 <Link href="/groups">
                   <Button variant="default">My Groups</Button>
                 </Link>
+                <button onClick={() => signOut()}>
+                  <Button variant="ghost">Sign Out</Button>
+                </button>
               </>
             ) : (
               <>
-                <Link href="/about">
-                  <Button variant="ghost">About</Button>
-                </Link>
-                <a href={getLoginUrl()}>
+                <Link href="/auth">
                   <Button variant="default">Get Started</Button>
-                </a>
+                </Link>
               </>
             )}
           </nav>
@@ -64,11 +61,11 @@ export default function Home() {
                     </Button>
                   </Link>
                 ) : (
-                  <a href={getLoginUrl()}>
+                  <Link href="/auth">
                     <Button size="lg" className="bg-orange-600 hover:bg-orange-700">
                       Join Now <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
-                  </a>
+                  </Link>
                 )}
                 <Link href="/about">
                   <Button size="lg" variant="outline">
@@ -177,11 +174,11 @@ export default function Home() {
               </Button>
             </Link>
           ) : (
-            <a href={getLoginUrl()}>
+            <Link href="/auth">
               <Button size="lg" variant="secondary" className="bg-white text-orange-600 hover:bg-orange-50">
                 Get Started Free
               </Button>
-            </a>
+            </Link>
           )}
         </div>
       </section>

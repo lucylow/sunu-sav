@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,17 +7,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { Bitcoin, ArrowLeft } from "lucide-react";
-import { APP_TITLE, getLoginUrl } from "@/const";
+import { APP_TITLE } from "@/const";
 import { toast } from "sonner";
 
 export default function CreateGroup() {
-  const { isAuthenticated } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [contributionAmount, setContributionAmount] = useState("");
-  const [frequency, setFrequency] = useState<"weekly" | "biweekly" | "monthly">("weekly");
+  const [frequency, setFrequency] = useState<"weekly" | "monthly" | "quarterly">("weekly");
   const [maxMembers, setMaxMembers] = useState("");
 
   const createMutation = trpc.tontine.create.useMutation({
@@ -56,7 +56,22 @@ export default function CreateGroup() {
     });
   };
 
-  if (!isAuthenticated) {
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
+        <div className="container mx-auto px-4 py-12 max-w-2xl">
+          <Card className="animate-pulse">
+            <CardHeader>
+              <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            </CardHeader>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-white">
         <Card className="max-w-md">
@@ -67,11 +82,11 @@ export default function CreateGroup() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <a href={getLoginUrl()}>
+            <Link href="/auth">
               <Button className="w-full bg-orange-600 hover:bg-orange-700">
                 Sign In
               </Button>
-            </a>
+            </Link>
           </CardContent>
         </Card>
       </div>
@@ -156,8 +171,8 @@ export default function CreateGroup() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="biweekly">Bi-weekly</SelectItem>
                     <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
