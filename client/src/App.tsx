@@ -13,6 +13,9 @@ import Landing from "./pages/Landing";
 import Payment from "./pages/Payment";
 import UXShowcase from "./pages/UXShowcase";
 import SunuSavBrandShowcase from "./pages/SunuSavBrandShowcase";
+import OfflineFirstDemo from "./pages/OfflineFirstDemo";
+import { startSyncEngine } from "./lib/sync-engine";
+import { useEffect } from "react";
 
 function Router() {
   return (
@@ -26,6 +29,7 @@ function Router() {
       <Route path="/payment" component={Payment} />
       <Route path="/ux-showcase" component={UXShowcase} />
       <Route path="/brand-showcase" component={SunuSavBrandShowcase} />
+      <Route path="/offline-demo" component={OfflineFirstDemo} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -38,6 +42,11 @@ function Router() {
 // - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function App() {
+  useEffect(() => {
+    // Initialize offline-first sync engine
+    startSyncEngine();
+  }, []);
+
   return (
     <ErrorBoundary>
       <ThemeProvider

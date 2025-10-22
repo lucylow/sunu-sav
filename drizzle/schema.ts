@@ -13,6 +13,7 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow(),
   walletAddress: varchar("walletAddress", { length: 255 }),
   phoneNumber: varchar("phoneNumber", { length: 20 }),
+  preferredLanguage: varchar("preferredLanguage", { length: 5 }).default("fr"), // 'fr', 'wo', 'en'
 });
 
 export type User = typeof users.$inferSelect;

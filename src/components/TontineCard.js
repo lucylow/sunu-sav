@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import I18n from '../i18n';
 
-export default function TontineCard({ tontine, onPress }) {
+export default function TontineCard({ tontine, onPress, onPay }) {
   const getStatusColor = (status) => {
     switch (status) {
       case 'active': return '#34C759';
@@ -31,59 +31,98 @@ export default function TontineCard({ tontine, onPress }) {
     }
   };
 
+  // Calculate payment urgency
+  const getPaymentUrgency = () => {
+    const now = new Date();
+    const nextDue = tontine.nextPayoutDate ? new Date(tontine.nextPayoutDate) : null;
+    if (!nextDue) return { urgency: 'neutral', text: 'No due date' };
+    
+    const daysUntilDue = Math.ceil((nextDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntilDue < 0) return { urgency: 'high', text: `${Math.abs(daysUntilDue)} overdue` };
+    if (daysUntilDue <= 3) return { urgency: 'medium', text: `${daysUntilDue}d` };
+    return { urgency: 'low', text: `${daysUntilDue}d` };
+  };
+
+  const paymentUrgency = getPaymentUrgency();
+  const progress = calculateProgress();
+  const userHasPaid = tontine.userHasPaid || false;
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
+      {/* Compact header with key info */}
       <View style={styles.cardHeader}>
-        <Text style={styles.name}>{tontine.name}</Text>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: getStatusColor(tontine.status) }
-        ]}>
-          <Text style={styles.statusText}>
-            {getStatusText(tontine.status)}
+        <View style={styles.titleSection}>
+          <Text style={styles.name} numberOfLines={1}>{tontine.name}</Text>
+          <Text style={styles.description} numberOfLines={1}>
+            {tontine.description || I18n.t('community_savings_circle')}
           </Text>
+        </View>
+        <View style={styles.headerActions}>
+          <View style={[
+            styles.urgencyBadge,
+            { backgroundColor: paymentUrgency.urgency === 'high' ? '#D9534F' : 
+                              paymentUrgency.urgency === 'medium' ? '#FF9500' : '#34C759' }
+          ]}>
+            <Text style={styles.urgencyText}>{paymentUrgency.text}</Text>
+          </View>
         </View>
       </View>
 
-      <View style={styles.details}>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>{I18n.t('contribution')}</Text>
-          <Text style={styles.detailValue}>{tontine.contributionAmount} sats</Text>
+      {/* Key metrics in compact layout */}
+      <View style={styles.metricsRow}>
+        <View style={styles.metricItem}>
+          <Text style={styles.metricValue}>{tontine.contributionAmount?.toLocaleString() || 0}</Text>
+          <Text style={styles.metricLabel}>sats</Text>
         </View>
-        
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>{I18n.t('cycle')}</Text>
-          <Text style={styles.detailValue}>{tontine.currentCycle}/{tontine.totalCycles}</Text>
-        </View>
-        
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>{I18n.t('members')}</Text>
-          <Text style={styles.detailValue}>
+        <View style={styles.metricItem}>
+          <Text style={styles.metricValue}>
             {tontine.members.filter(m => m.hasPaid).length}/{tontine.members.length}
           </Text>
+          <Text style={styles.metricLabel}>paid</Text>
+        </View>
+        <View style={styles.metricItem}>
+          <Text style={styles.metricValue}>{tontine.currentCycle || 1}</Text>
+          <Text style={styles.metricLabel}>cycle</Text>
         </View>
       </View>
 
-      {/* Progress Bar */}
+      {/* Progress bar */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBackground}>
           <View 
             style={[
               styles.progressFill,
-              { width: `${calculateProgress() * 100}%` }
+              { width: `${progress * 100}%` }
             ]} 
           />
         </View>
         <Text style={styles.progressText}>
-          {Math.round(calculateProgress() * 100)}% complété
+          {Math.round(progress * 100)}% {I18n.t('complete')}
         </Text>
       </View>
 
-      {tontine.status === 'active' && !tontine.userHasPaid && (
-        <TouchableOpacity style={styles.payButton}>
-          <Text style={styles.payButtonText}>{I18n.t('pay_now')}</Text>
+      {/* Action buttons */}
+      <View style={styles.actionButtons}>
+        <TouchableOpacity style={styles.viewButton} onPress={onPress}>
+          <Text style={styles.viewButtonText}>{I18n.t('view')}</Text>
         </TouchableOpacity>
-      )}
+        <TouchableOpacity 
+          style={[
+            styles.payButton,
+            (tontine.status !== 'active' || userHasPaid) && styles.payButtonDisabled
+          ]}
+          onPress={() => onPay && onPay(tontine)}
+          disabled={tontine.status !== 'active' || userHasPaid}
+        >
+          <Text style={[
+            styles.payButtonText,
+            (tontine.status !== 'active' || userHasPaid) && styles.payButtonTextDisabled
+          ]}>
+            {userHasPaid ? I18n.t('paid') : I18n.t('pay_now')}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -105,68 +144,109 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
-  name: {
-    fontSize: 18,
-    fontWeight: '600',
+  titleSection: {
     flex: 1,
+    marginRight: 8,
   },
-  statusBadge: {
+  name: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 2,
+  },
+  description: {
+    fontSize: 12,
+    color: '#666666',
+  },
+  headerActions: {
+    alignItems: 'flex-end',
+  },
+  urgencyBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  statusText: {
+  urgencyText: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
   },
-  details: {
+  metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  detailItem: {
+  metricItem: {
     alignItems: 'center',
+    flex: 1,
   },
-  detailLabel: {
-    fontSize: 12,
+  metricValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333333',
+    marginBottom: 2,
+  },
+  metricLabel: {
+    fontSize: 11,
     color: '#666666',
-    marginBottom: 4,
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '500',
+    textTransform: 'uppercase',
   },
   progressContainer: {
     marginBottom: 12,
   },
   progressBackground: {
-    height: 6,
+    height: 4,
     backgroundColor: '#F0F0F0',
-    borderRadius: 3,
+    borderRadius: 2,
     marginBottom: 4,
   },
   progressFill: {
-    height: 6,
-    backgroundColor: '#000000',
-    borderRadius: 3,
+    height: 4,
+    backgroundColor: '#34C759',
+    borderRadius: 2,
   },
   progressText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666666',
+    textAlign: 'center',
   },
-  payButton: {
-    backgroundColor: '#000000',
-    padding: 12,
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  viewButton: {
+    flex: 1,
+    backgroundColor: '#F8F8F8',
+    padding: 10,
     borderRadius: 8,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  viewButtonText: {
+    color: '#333333',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  payButton: {
+    flex: 1,
+    backgroundColor: '#34C759',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  payButtonDisabled: {
+    backgroundColor: '#E0E0E0',
   },
   payButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  payButtonTextDisabled: {
+    color: '#999999',
   },
 });

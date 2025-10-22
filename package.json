@@ -14,7 +14,10 @@
     "start-server": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
-    "db:push": "drizzle-kit generate && drizzle-kit migrate"
+    "db:push": "drizzle-kit generate && drizzle-kit migrate",
+    "i18n:extract": "i18next-scanner --config scripts/i18next-scanner.config.js",
+    "i18n:export": "node scripts/export-translations.js",
+    "i18n:check": "node scripts/check-translations.js"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.0",
@@ -59,7 +62,7 @@
     "@tailwindcss/vite": "^4.0.0",
     "@vitejs/plugin-react": "^5.0.0",
     "wouter": "^3.7.1",
-    "zod": "^4.1.12",
+    "zod": "^3.22.0",
     "zustand": "^4.4.0"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,60 @@ export default function HomeScreen({ navigation }) {
     await loadTontines();
     setRefreshing(false);
   };
+
+  // Sort tontines by urgency (overdue first, then due soon)
+  const sortedTontines = useMemo(() => {
+    if (!tontines) return [];
+    
+    return [...tontines].sort((a, b) => {
+      const now = new Date();
+      const aDue = a.nextPayoutDate ? new Date(a.nextPayoutDate) : new Date(0);
+      const bDue = b.nextPayoutDate ? new Date(b.nextPayoutDate) : new Date(0);
+      
+      const aDaysUntilDue = Math.ceil((aDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const bDaysUntilDue = Math.ceil((bDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Overdue items first
+      if (aDaysUntilDue < 0 && bDaysUntilDue >= 0) return -1;
+      if (bDaysUntilDue < 0 && aDaysUntilDue >= 0) return 1;
+      
+      // Then by days until due (ascending)
+      return aDaysUntilDue - bDaysUntilDue;
+    });
+  }, [tontines]);
+
+  // Memoized render item for FlatList optimization
+  const renderTontineItem = useCallback(({ item }) => (
+    <TontineCard 
+      tontine={item}
+      onPress={() => navigation.navigate('TontineDetail', { tontine: item })}
+      onPay={handlePayTontine}
+    />
+  ), [navigation]);
+
+  // Memoized key extractor
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  // Handle payment with optimistic UI
+  const handlePayTontine = useCallback((tontine) => {
+    Alert.alert(
+      I18n.t('confirm_contribution'),
+      `${I18n.t('contribute')} ${tontine.contributionAmount} sats?`,
+      [
+        { text: I18n.t('cancel'), style: 'cancel' },
+        { 
+          text: I18n.t('pay_now'), 
+          onPress: () => {
+            // Navigate to payment screen with optimistic state
+            navigation.navigate('Payment', { 
+              tontine,
+              optimistic: true 
+            });
+          }
+        }
+      ]
+    );
+  }, [navigation]);
 
   const quickActions = [
     {
@@ -88,19 +142,15 @@ export default function HomeScreen({ navigation }) {
 
       {/* Tontines List */}
       <FlatList
-        data={tontines}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TontineCard 
-            tontine={item}
-            onPress={() => navigation.navigate('TontineDetail', { tontine: item })}
-          />
-        )}
+        data={sortedTontines}
+        keyExtractor={keyExtractor}
+        renderItem={renderTontineItem}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#000000']}
+            colors={['#34C759']}
+            tintColor="#34C759"
           />
         }
         ListEmptyComponent={
@@ -114,6 +164,16 @@ export default function HomeScreen({ navigation }) {
           </View>
         }
         contentContainerStyle={styles.listContent}
+        // Performance optimizations
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        windowSize={10}
+        removeClippedSubviews={true}
+        getItemLayout={(data, index) => ({
+          length: 180, // Approximate height of TontineCard
+          offset: 180 * index,
+          index,
+        })}
       />
     </View>
   );
