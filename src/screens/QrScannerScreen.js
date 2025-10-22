@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,32 +8,25 @@ import {
   Vibration,
   Platform,
   ActivityIndicator,
-  Dimensions
+  TextInput,
+  ScrollView
 } from 'react-native';
-import { RNCamera } from 'react-native-camera';
-import Svg, { Rect, Line } from 'react-native-svg';
 import { parseLightningPayload } from '../utils/lightning';
 import { payBolt11, queuePendingPayment } from '../services/lightningService';
 import I18n from '../i18n';
-import NetInfo from '@react-native-community/netinfo';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const SCAN_RECT_SIZE = Math.min(screenWidth * 0.7, 300);
+// Note: NetInfo would be imported here for network monitoring
+// For now, we'll assume online status
 
 export default function QrScannerScreen({ navigation }) {
-  const cameraRef = useRef(null);
   const [scanned, setScanned] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const [flashMode, setFlashMode] = useState(RNCamera.Constants.FlashMode.off);
+  const [manualInput, setManualInput] = useState('');
 
   useEffect(() => {
-    // Monitor network connectivity
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOnline(Boolean(state.isConnected));
-    });
-
-    return () => unsubscribe();
+    // Note: In a real implementation, you would monitor network connectivity here
+    // For now, we'll assume the device is online
+    setIsOnline(true);
   }, []);
 
   const provideFeedback = useCallback(() => {
@@ -45,15 +38,15 @@ export default function QrScannerScreen({ navigation }) {
     }
   }, []);
 
-  const onBarCodeRead = useCallback(async ({ data }) => {
-    if (scanned || isProcessing) return; // Prevent multiple scans
+  const handleManualInput = useCallback(async () => {
+    if (!manualInput.trim() || isProcessing) return;
     
     setScanned(true);
     provideFeedback();
 
     try {
-      // Parse the scanned data
-      const parsed = parseLightningPayload(data);
+      // Parse the input data
+      const parsed = parseLightningPayload(manualInput.trim());
       
       if (parsed.type === 'bolt11') {
         // Handle BOLT11 invoice
@@ -74,14 +67,14 @@ export default function QrScannerScreen({ navigation }) {
         );
       }
     } catch (error) {
-      console.error('QR scan error:', error);
+      console.error('Input processing error:', error);
       Alert.alert(
         I18n.t('scan_error'),
         error.message || I18n.t('unknown_error'),
         [{ text: I18n.t('ok'), onPress: () => setScanned(false) }]
       );
     }
-  }, [scanned, isProcessing]);
+  }, [manualInput, isProcessing]);
 
   const handleBolt11Payment = async (parsed) => {
     setIsProcessing(true);
@@ -144,231 +137,179 @@ export default function QrScannerScreen({ navigation }) {
     }
   };
 
-  const toggleFlash = () => {
-    setFlashMode(prev => 
-      prev === RNCamera.Constants.FlashMode.off 
-        ? RNCamera.Constants.FlashMode.torch 
-        : RNCamera.Constants.FlashMode.off
-    );
-  };
-
   const resetScanner = () => {
     setScanned(false);
     setIsProcessing(false);
+    setManualInput('');
   };
 
   return (
-    <View style={styles.container}>
-      <RNCamera
-        ref={cameraRef}
-        style={styles.preview}
-        type={RNCamera.Constants.Type.back}
-        captureAudio={false}
-        flashMode={flashMode}
-        androidCameraPermissionOptions={{
-          title: I18n.t('camera_permission_title'),
-          message: I18n.t('camera_permission_message'),
-          buttonPositive: I18n.t('ok'),
-          buttonNegative: I18n.t('cancel'),
-        }}
-        onBarCodeRead={onBarCodeRead}
-        barCodeTypes={[RNCamera.Constants.BarCodeType.qr]}
-      >
-        {/* Overlay with scanning area */}
-        <View style={styles.overlay}>
-          <Svg height="100%" width="100%">
-            {/* Semi-transparent background */}
-            <Rect
-              x={0}
-              y={0}
-              width="100%"
-              height="100%"
-              fill="rgba(0,0,0,0.5)"
-            />
-            
-            {/* Scanning window */}
-            <Rect
-              x={(screenWidth - SCAN_RECT_SIZE) / 2}
-              y={(screenHeight - SCAN_RECT_SIZE) / 2 - 50}
-              width={SCAN_RECT_SIZE}
-              height={SCAN_RECT_SIZE}
-              fill="transparent"
-              stroke="#FFFFFF"
-              strokeWidth={2}
-              rx={12}
-              ry={12}
-            />
-            
-            {/* Corner indicators */}
-            <Line
-              x1={(screenWidth - SCAN_RECT_SIZE) / 2}
-              y1={(screenHeight - SCAN_RECT_SIZE) / 2 - 50}
-              x2={(screenWidth - SCAN_RECT_SIZE) / 2 + 30}
-              y2={(screenHeight - SCAN_RECT_SIZE) / 2 - 50}
-              stroke="#34C759"
-              strokeWidth={4}
-            />
-            <Line
-              x1={(screenWidth - SCAN_RECT_SIZE) / 2}
-              y1={(screenHeight - SCAN_RECT_SIZE) / 2 - 50}
-              x2={(screenWidth - SCAN_RECT_SIZE) / 2}
-              y2={(screenHeight - SCAN_RECT_SIZE) / 2 - 20}
-              stroke="#34C759"
-              strokeWidth={4}
-            />
-            <Line
-              x1={(screenWidth + SCAN_RECT_SIZE) / 2}
-              y1={(screenHeight - SCAN_RECT_SIZE) / 2 - 50}
-              x2={(screenWidth + SCAN_RECT_SIZE) / 2 - 30}
-              y2={(screenHeight - SCAN_RECT_SIZE) / 2 - 50}
-              stroke="#34C759"
-              strokeWidth={4}
-            />
-            <Line
-              x1={(screenWidth + SCAN_RECT_SIZE) / 2}
-              y1={(screenHeight - SCAN_RECT_SIZE) / 2 - 50}
-              x2={(screenWidth + SCAN_RECT_SIZE) / 2}
-              y2={(screenHeight - SCAN_RECT_SIZE) / 2 - 20}
-              stroke="#34C759"
-              strokeWidth={4}
-            />
-            <Line
-              x1={(screenWidth - SCAN_RECT_SIZE) / 2}
-              y1={(screenHeight + SCAN_RECT_SIZE) / 2 - 50}
-              x2={(screenWidth - SCAN_RECT_SIZE) / 2 + 30}
-              y2={(screenHeight + SCAN_RECT_SIZE) / 2 - 50}
-              stroke="#34C759"
-              strokeWidth={4}
-            />
-            <Line
-              x1={(screenWidth - SCAN_RECT_SIZE) / 2}
-              y1={(screenHeight + SCAN_RECT_SIZE) / 2 - 50}
-              x2={(screenWidth - SCAN_RECT_SIZE) / 2}
-              y2={(screenHeight + SCAN_RECT_SIZE) / 2 - 30}
-              stroke="#34C759"
-              strokeWidth={4}
-            />
-            <Line
-              x1={(screenWidth + SCAN_RECT_SIZE) / 2}
-              y1={(screenHeight + SCAN_RECT_SIZE) / 2 - 50}
-              x2={(screenWidth + SCAN_RECT_SIZE) / 2 - 30}
-              y2={(screenHeight + SCAN_RECT_SIZE) / 2 - 50}
-              stroke="#34C759"
-              strokeWidth={4}
-            />
-            <Line
-              x1={(screenWidth + SCAN_RECT_SIZE) / 2}
-              y1={(screenHeight + SCAN_RECT_SIZE) / 2 - 50}
-              x2={(screenWidth + SCAN_RECT_SIZE) / 2}
-              y2={(screenHeight + SCAN_RECT_SIZE) / 2 - 30}
-              stroke="#34C759"
-              strokeWidth={4}
-            />
-          </Svg>
-        </View>
+    <ScrollView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>{I18n.t('lightning_payment')}</Text>
+        <Text style={styles.subtitle}>{I18n.t('enter_lightning_invoice')}</Text>
+      </View>
 
-        {/* Instructions */}
-        <View style={styles.instructionsContainer}>
-          <Text style={styles.instructions}>
-            {I18n.t('scan_qr_instruction')}
+      {/* Manual Input Section */}
+      <View style={styles.inputContainer}>
+        <Text style={styles.inputLabel}>{I18n.t('lightning_invoice')}</Text>
+        <TextInput
+          style={styles.input}
+          placeholder={I18n.t('paste_invoice_here')}
+          value={manualInput}
+          onChangeText={setManualInput}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+          editable={!isProcessing}
+        />
+        
+        <TouchableOpacity
+          style={[
+            styles.processButton,
+            (!manualInput.trim() || isProcessing) && styles.processButtonDisabled
+          ]}
+          onPress={handleManualInput}
+          disabled={!manualInput.trim() || isProcessing}
+        >
+          {isProcessing ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.processButtonText}>
+              {I18n.t('process_payment')}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Instructions */}
+      <View style={styles.instructionsContainer}>
+        <Text style={styles.instructionsTitle}>{I18n.t('how_to_pay')}</Text>
+        <Text style={styles.instructionText}>
+          • {I18n.t('copy_lightning_invoice')}
+        </Text>
+        <Text style={styles.instructionText}>
+          • {I18n.t('paste_invoice_above')}
+        </Text>
+        <Text style={styles.instructionText}>
+          • {I18n.t('tap_process_payment')}
+        </Text>
+        <Text style={styles.instructionText}>
+          • {I18n.t('confirm_payment_details')}
+        </Text>
+      </View>
+
+      {/* Bottom controls */}
+      <View style={styles.bottomControls}>
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={resetScanner}
+          disabled={isProcessing}
+        >
+          <Text style={styles.controlButtonText}>
+            {I18n.t('reset')}
           </Text>
-          <Text style={styles.subInstructions}>
-            {I18n.t('position_qr_in_frame')}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.controlButtonText}>
+            {I18n.t('cancel')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Offline indicator */}
+      {!isOnline && (
+        <View style={styles.offlineIndicator}>
+          <Text style={styles.offlineText}>
+            {I18n.t('offline_mode')}
           </Text>
         </View>
-
-        {/* Bottom controls */}
-        <View style={styles.bottomControls}>
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={resetScanner}
-            disabled={isProcessing}
-          >
-            <Text style={styles.controlButtonText}>
-              {I18n.t('reset')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={toggleFlash}
-          >
-            <Text style={styles.controlButtonText}>
-              {flashMode === RNCamera.Constants.FlashMode.off 
-                ? I18n.t('flash_on') 
-                : I18n.t('flash_off')
-              }
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.controlButtonText}>
-              {I18n.t('cancel')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Processing indicator */}
-        {isProcessing && (
-          <View style={styles.processingOverlay}>
-            <ActivityIndicator size="large" color="#34C759" />
-            <Text style={styles.processingText}>
-              {I18n.t('processing_payment')}
-            </Text>
-          </View>
-        )}
-
-        {/* Offline indicator */}
-        {!isOnline && (
-          <View style={styles.offlineIndicator}>
-            <Text style={styles.offlineText}>
-              {I18n.t('offline_mode')}
-            </Text>
-          </View>
-        )}
-      </RNCamera>
-    </View>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
   },
-  preview: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  instructionsContainer: {
-    position: 'absolute',
-    top: 100,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+  header: {
     paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
-  instructions: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
+    color: '#333333',
   },
-  subInstructions: {
-    color: '#FFFFFF',
-    fontSize: 14,
+  subtitle: {
+    fontSize: 16,
+    color: '#666666',
     textAlign: 'center',
-    opacity: 0.8,
+  },
+  inputContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#333333',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 14,
+    backgroundColor: '#F8F8F8',
+    marginBottom: 20,
+    fontFamily: 'monospace',
+  },
+  processButton: {
+    backgroundColor: '#34C759',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  processButtonDisabled: {
+    backgroundColor: '#E0E0E0',
+  },
+  processButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  instructionsContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: '#F8F8F8',
+    marginHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  instructionsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#333333',
+  },
+  instructionText: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 8,
+    lineHeight: 20,
   },
   bottomControls: {
     flexDirection: 'row',
@@ -378,38 +319,27 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   controlButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: '#F0F0F0',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
     minWidth: 80,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
   },
   controlButtonText: {
-    color: '#FFFFFF',
+    color: '#333333',
     fontSize: 14,
     fontWeight: '600',
   },
-  processingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  processingText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    marginTop: 16,
-    textAlign: 'center',
-  },
   offlineIndicator: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
     backgroundColor: 'rgba(255,59,48,0.9)',
     paddingVertical: 8,
     alignItems: 'center',
+    marginHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 20,
   },
   offlineText: {
     color: '#FFFFFF',

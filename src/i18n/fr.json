@@ -136,7 +136,15 @@
     "flash_off": "Flash désactivé",
     "confirm_payment": "Confirmer le paiement",
     "amount_unknown": "Montant inconnu",
-    "memo": "Mémo"
+    "memo": "Mémo",
+    "lightning_payment": "Paiement Lightning",
+    "enter_lightning_invoice": "Entrez la facture Lightning manuellement",
+    "paste_invoice_here": "Collez la facture Lightning ici...",
+    "process_payment": "Traiter le paiement",
+    "copy_lightning_invoice": "Copiez la facture Lightning depuis votre portefeuille",
+    "paste_invoice_above": "Collez-la dans le champ ci-dessus",
+    "tap_process_payment": "Appuyez sur 'Traiter le paiement'",
+    "confirm_payment_details": "Confirmez les détails du paiement"
   },
   "notifications": {
     "contribution_success": "Votre contribution de {{amount}} sats a été reçue.",

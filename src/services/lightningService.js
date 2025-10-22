@@ -144,6 +144,7 @@ export async function clearPendingPayments() {
 
 /**
  * Process queued payments when back online
+ * Note: In a real implementation, this would be called when network connectivity is restored
  */
 export async function processQueuedPayments() {
   try {

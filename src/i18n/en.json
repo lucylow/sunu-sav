@@ -136,7 +136,15 @@
     "flash_off": "Flash Off",
     "confirm_payment": "Confirm Payment",
     "amount_unknown": "Amount unknown",
-    "memo": "Memo"
+    "memo": "Memo",
+    "lightning_payment": "Lightning Payment",
+    "enter_lightning_invoice": "Enter Lightning invoice manually",
+    "paste_invoice_here": "Paste Lightning invoice here...",
+    "process_payment": "Process Payment",
+    "copy_lightning_invoice": "Copy the Lightning invoice from your wallet",
+    "paste_invoice_above": "Paste it in the field above",
+    "tap_process_payment": "Tap 'Process Payment'",
+    "confirm_payment_details": "Confirm the payment details"
   },
   "notifications": {
     "contribution_success": "Your contribution of {{amount}} sats has been received.",

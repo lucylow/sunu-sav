@@ -132,6 +132,29 @@ export const useStore = create(
         }
       },
       
+      updateTontinePayment: (tontineId, paymentData) => {
+        try {
+          const tontines = get().tontines;
+          const updatedTontines = tontines.map(tontine => {
+            if (tontine.id === tontineId) {
+              return {
+                ...tontine,
+                ...paymentData,
+                members: tontine.members.map(member => 
+                  member.id === get().user?.id 
+                    ? { ...member, hasPaid: paymentData.status === 'paid' }
+                    : member
+                )
+              };
+            }
+            return tontine;
+          });
+          set({ tontines: updatedTontines });
+        } catch (error) {
+          console.error('Failed to update tontine payment:', error);
+        }
+      },
+      
       // Clear all data (for logout)
       clearStore: () => set({ 
         user: null, 
