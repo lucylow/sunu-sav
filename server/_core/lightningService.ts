@@ -20,7 +20,11 @@ const LND_REST_URL = process.env.LND_REST_URL;
 const MACAROON = process.env.LND_MACAROON_HEX || '';
 
 if (!LND_REST_URL) {
-  console.warn('LND_REST_URL not set — lightningService will use mock mode.');
+  throw new Error(
+    'Lightning Network not configured. Set LND_REST_URL and LND_MACAROON_HEX environment variables. ' +
+    'For testnet setup, see: https://github.com/lightningnetwork/lnd/blob/master/docs/INSTALL.md ' +
+    'Or use Polar for local testnet: https://lightningpolar.com/'
+  );
 }
 
 function axiosInstance() {
