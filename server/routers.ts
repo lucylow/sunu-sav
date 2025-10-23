@@ -23,6 +23,7 @@ export const appRouter = router({
       if (!ctx.user) return null;
       
       const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       
       // Get profile from database
       const profile = await db

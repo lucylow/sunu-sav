@@ -6,11 +6,11 @@ let db: ReturnType<typeof drizzle> | null = null;
 
 export async function getDb() {
   if (!db) {
-    const connection = await mysql.createConnection({
+    const connection = await mysql.createPool({
       uri: process.env.DATABASE_URL || 'mysql://root@localhost:3306/sunusav',
     });
     
-    db = drizzle(connection, { schema });
+    db = drizzle(connection, { schema, mode: 'default' });
   }
   
   return db;

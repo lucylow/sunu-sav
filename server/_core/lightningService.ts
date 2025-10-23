@@ -39,17 +39,6 @@ function axiosInstance() {
 }
 
 async function createInvoice(amountSats: number, memo = '') {
-  if (!LND_REST_URL) {
-    // Mock mode for demo
-    const paymentHash = crypto.randomBytes(32).toString('hex');
-    const paymentRequest = `lnbcrt${amountSats}n1p${paymentHash}...mock_invoice_${paymentHash}`;
-    return {
-      payment_request: paymentRequest,
-      payment_hash: paymentHash,
-      raw: { memo, value: amountSats }
-    };
-  }
-  
   const client = axiosInstance();
 
   // LND REST create invoice v2: POST /v2/invoices or /v1/invoices (older)
@@ -83,16 +72,6 @@ async function createInvoice(amountSats: number, memo = '') {
 }
 
 async function checkInvoiceStatus(paymentHashHex: string) {
-  if (!LND_REST_URL) {
-    // Mock mode - simulate random payment settlement
-    const settled = Math.random() > 0.2; // 80% chance of settling
-    return {
-      payment_hash: paymentHashHex,
-      settled: settled,
-      amount_paid_sats: settled ? Math.floor(Math.random() * 10000) + 1000 : 0
-    };
-  }
-  
   const client = axiosInstance();
   // LND REST: GET /v1/invoice/{r_hash_hex}
   // Some LND versions expect base64; try hex endpoint
@@ -118,21 +97,6 @@ async function checkInvoiceStatus(paymentHashHex: string) {
  * Note: This endpoint may not be available depending on LND version; if not available, recommend calling gRPC or letting client pay.
  */
 async function payInvoice(bolt11Invoice: string, timeoutMs = 30000) {
-  if (!LND_REST_URL) {
-    // Mock mode
-    const paymentHash = crypto.randomBytes(32).toString('hex');
-    const success = Math.random() > 0.1; // 90% chance of success
-    if (!success) {
-      throw new Error('Mock Lightning payment failed');
-    }
-    return {
-      payment_hash: paymentHash,
-      preimage: crypto.randomBytes(32).toString('hex'),
-      amount_sent_sats: 1000,
-      fee_sats: 10
-    };
-  }
-  
   const client = axiosInstance();
 
   try {
